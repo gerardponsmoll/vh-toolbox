@@ -16,7 +16,7 @@ You need Python 3.10 or newer. Everything is installed into a virtual
 environment inside this folder, so nothing else on your machine is touched.
 
 ```bash
-git clone <repository-url>
+git clone https://github.com/gerardponsmoll/vh-toolbox.git
 cd vh-toolbox
 
 python3 -m venv .venv
@@ -52,13 +52,15 @@ right-drag to pan.
 
 - **Shape (beta)**: the first 10 shape coefficients, in standard deviations.
 - **Pose (theta)**: pick a joint, then set its rotation as an axis-angle vector.
-  `pelvis` is the global orientation of the body.
+  `pelvis` is the global orientation of the body. You can also click a body part
+  to select its joint and drag the coloured rings to rotate it; the sliders follow.
 - **Display › Show**: stop the model after each step, from the template to the final mesh.
 - **Display › Pose blendshapes**: turn the pose-dependent corrections off.
 - **Display › Blend skinning**: turn off to attach each vertex to a single joint
   (weight 1, all others 0), so every body part rotates as a rigid piece.
 - **Display › Colour**: skinning weights, or the size of the pose blendshape offsets.
-- **Display › Skeleton**: joints and bones; the selected joint is red.
+- **Display › Skeleton**: joints and bones, with the body made see-through.
+  Click a joint to select it; the selected joint is red.
 
 ### Things to try
 
@@ -79,6 +81,7 @@ right-drag to pan.
 ## The code
 
 - `vh/smpl.py`: the whole SMPL forward pass in about 100 lines of NumPy.
+- `vh/geometry.py`: geometric helpers (ray-mesh intersection).
 - `demos/`: one viewer per lecture.
 - `scripts/prepare_smpl.py`: converts the official model files.
 - `tests/`: run with `pip install -e ".[dev]" && pytest`.

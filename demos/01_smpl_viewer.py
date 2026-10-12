@@ -1,7 +1,9 @@
 """Lecture 1: interactive SMPL viewer.
 
 Move the sliders to change body shape (beta) and pose (theta), and use the
-"Display" options to look at each step of the model separately.
+"Display" options to look at each step of the model separately. Click a body
+part (or a joint, with the skeleton on) to select its joint, then drag the
+rings to rotate it.
 
     python demos/01_smpl_viewer.py
 """
@@ -17,8 +19,10 @@ from pathlib import Path
 import numpy as np
 import trimesh
 import viser
+import viser.transforms as tf
 
 from vh import JOINT_NAMES, SMPLModel, forward, rigid_weights
+from vh.geometry import ray_mesh_intersection
 
 MODEL_DIR = Path(__file__).resolve().parent.parent / "models"
 
@@ -35,6 +39,10 @@ COLORS = [
     "Pose blendshape offset",
 ]
 SKIN = (222, 184, 160)
+JOINT_COLOR = (40, 40, 40)
+SELECTED_COLOR = (230, 30, 30)
+SEE_THROUGH = 0.35  # mesh opacity while the skeleton is shown
+JOINT_RADIUS = 0.02  # metres, size of the joint spheres
 MAX_OFFSET = 0.02  # metres; pose blendshape offsets at or above this are fully red
 
 
@@ -89,7 +97,9 @@ def main() -> None:
             hint="Turn off to attach each vertex to one joint only (weight 1, all others 0).",
         )
         gui_color = server.gui.add_dropdown("Colour", COLORS, initial_value=COLORS[0])
-        gui_skeleton = server.gui.add_checkbox("Skeleton", False)
+        gui_skeleton = server.gui.add_checkbox(
+            "Skeleton", False, hint="Show joints and bones. Click a joint to select it."
+        )
         gui_wireframe = server.gui.add_checkbox("Wireframe", False)
 
     with server.gui.add_folder("Shape (beta)"):
@@ -105,23 +115,75 @@ def main() -> None:
         gui_axis = [
             server.gui.add_slider(
                 label,
-                min=-3.14,
-                max=3.14,
+                min=-3.15,
+                max=3.15,
                 step=0.01,
                 initial_value=0.0,
                 hint="Axis-angle component, in radians.",
             )
             for label in ("x", "y", "z")
         ]
+        gui_gizmo = server.gui.add_checkbox(
+            "Rotation handle", True, hint="Drag the rings on the selected joint to rotate it."
+        )
         gui_pose_reset = server.gui.add_button("Reset pose")
         gui_pose_random = server.gui.add_button("Random pose")
 
     # ------------------------------------------------------------- drawing
     mesh_handle = None
     mesh_key = None  # what kind of mesh node is currently in the scene
+    world_rotations = np.tile(np.eye(3), (num_joints, 1, 1))  # of each joint, from the last draw
+    shown_vertices = models[first].v_template  # the mesh as currently displayed
+    shown_joints = np.zeros((num_joints, 3))  # and its joints
+    last_handle_use = 0.0  # time of the last interaction with the rotation handle
 
-    def draw() -> None:
-        nonlocal mesh_handle, mesh_key
+    # Clicks are handled for the whole scene rather than per object, because
+    # viser draws a highlight around objects that take clicks themselves.
+    @server.scene.on_click()
+    def on_scene_click(event) -> None:
+        """Select the joint under the cursor.
+
+        With the skeleton shown, a click on a joint sphere selects that joint.
+        Otherwise the click selects the joint that this point of the body is
+        mostly attached to, according to the skinning weights.
+        """
+        if time.time() - last_handle_use < 0.3:  # the click was on the rotation handle
+            return
+        origin = np.asarray(event.ray_origin, dtype=np.float64)
+        direction = np.asarray(event.ray_direction, dtype=np.float64)
+        direction = direction / np.linalg.norm(direction)
+
+        if gui_skeleton.value:
+            to_joints = shown_joints - origin
+            along = to_joints @ direction
+            distance = np.linalg.norm(to_joints - along[:, None] * direction, axis=1)
+            along[(distance > 1.5 * JOINT_RADIUS) | (along <= 0)] = np.inf
+            if np.isfinite(along).any():
+                gui_joint.value = joint_names[int(along.argmin())]
+                return
+
+        model = models[gui_model.value]
+        hit = ray_mesh_intersection(origin, direction, shown_vertices, model.faces)
+        if hit is not None:
+            face, barycentric = hit
+            weights_at_click = barycentric @ model.weights[model.faces[face]]
+            gui_joint.value = joint_names[int(weights_at_click.argmax())]
+
+    joint_handles = [
+        server.scene.add_icosphere(f"/skeleton/joints/{k}", radius=JOINT_RADIUS, color=JOINT_COLOR, visible=False)
+        for k in range(num_joints)
+    ]
+    gizmo = server.scene.add_transform_controls(
+        "/rotation_handle",
+        scale=0.25,
+        disable_axes=True,
+        disable_sliders=True,
+        depth_test=False,
+        visible=False,
+    )
+
+    def draw(move_gizmo: bool = True) -> None:
+        nonlocal mesh_handle, mesh_key, world_rotations, shown_vertices, shown_joints, syncing
         with lock:
             model = models[gui_model.value]
             betas = np.array([g.value for g in gui_betas])
@@ -166,37 +228,43 @@ def main() -> None:
                     model.faces,
                     color=SKIN,
                     wireframe=gui_wireframe.value,
-                    opacity=0.5 if gui_skeleton.value else None,
+                    opacity=SEE_THROUGH if gui_skeleton.value else None,
                 )
             else:
                 mesh = trimesh.Trimesh(vertices, model.faces, process=False)
-                alpha = 0.5 if gui_skeleton.value else 1.0
+                alpha = SEE_THROUGH if gui_skeleton.value else 1.0
                 rgba = np.concatenate([colors, np.full((len(colors), 1), alpha)], axis=1)
                 mesh.visual.vertex_colors = (rgba * 255).astype(np.uint8)
                 mesh_handle = server.scene.add_mesh_trimesh("/body", mesh)
             mesh_key = key
+            shown_vertices, shown_joints = vertices, joints
 
             has_parent = model.parents >= 0
             bones = np.stack([joints[model.parents[has_parent]], joints[has_parent]], axis=1)
-            joint_colors = np.tile(np.array([[40, 40, 40]], dtype=np.uint8), (num_joints, 1))
-            joint_colors[selected] = (230, 30, 30)
             server.scene.add_line_segments(
                 "/skeleton/bones",
                 bones.astype(np.float32),
-                colors=(40, 40, 40),
+                colors=JOINT_COLOR,
                 thickness=3.0,
                 thickness_units="screen",
                 visible=gui_skeleton.value,
             )
-            server.scene.add_point_cloud(
-                "/skeleton/joints",
-                joints.astype(np.float32),
-                colors=joint_colors,
-                point_size=0.025,
-                point_shape="circle",
-                precision="float32",
-                visible=gui_skeleton.value,
-            )
+            for k, handle in enumerate(joint_handles):
+                handle.position = joints[k]
+                handle.color = SELECTED_COLOR if k == selected else JOINT_COLOR
+                handle.visible = gui_skeleton.value
+
+            # The rotation handle sits on the selected joint, aligned with the
+            # joint's frame. It is left alone while the user is dragging it.
+            world_rotations = out.transforms[:, :3, :3]
+            if move_gizmo:
+                syncing = True
+                try:
+                    gizmo.position = out.joints[selected]
+                    gizmo.wxyz = tf.SO3.from_matrix(world_rotations[selected]).wxyz
+                    gizmo.visible = gui_gizmo.value and stage == len(STAGES) - 1
+                finally:
+                    syncing = False
 
     # ----------------------------------------------------------- callbacks
     def set_sliders(handles, values) -> None:
@@ -218,6 +286,20 @@ def main() -> None:
         pose[joint_names.index(gui_joint.value)] = [g.value for g in gui_axis]
         draw()
 
+    def on_gizmo(_) -> None:
+        """Turn the handle's world rotation into the joint's rotation relative to its parent."""
+        nonlocal last_handle_use
+        last_handle_use = time.time()
+        if syncing:
+            return
+        k = joint_names.index(gui_joint.value)
+        parent = models[gui_model.value].parents[k]
+        parent_rotation = np.eye(3) if parent < 0 else world_rotations[parent]
+        local_rotation = parent_rotation.T @ tf.SO3(np.array(gizmo.wxyz)).as_matrix()
+        pose[k] = tf.SO3.from_matrix(local_rotation).log()
+        set_sliders(gui_axis, pose[k])
+        draw(move_gizmo=False)
+
     def on_joint(_) -> None:
         set_sliders(gui_axis, pose[joint_names.index(gui_joint.value)])
         draw()
@@ -238,11 +320,22 @@ def main() -> None:
         pose[1:] = np.random.randn(num_joints - 1, 3) * 0.2
         on_joint(None)
 
-    for handle in [gui_model, gui_stage, gui_blend, gui_skinning, gui_color, gui_skeleton, gui_wireframe, *gui_betas]:
+    for handle in [
+        gui_model,
+        gui_stage,
+        gui_blend,
+        gui_skinning,
+        gui_color,
+        gui_skeleton,
+        gui_wireframe,
+        gui_gizmo,
+        *gui_betas,
+    ]:
         handle.on_update(on_display)
     for handle in gui_axis:
         handle.on_update(on_axis)
     gui_joint.on_update(on_joint)
+    gizmo.on_update(on_gizmo)
     gui_shape_reset.on_click(on_shape_reset)
     gui_shape_random.on_click(on_shape_random)
     gui_pose_reset.on_click(on_pose_reset)
