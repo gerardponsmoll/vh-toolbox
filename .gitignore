@@ -1,0 +1,10 @@
+.venv/
+__pycache__/
+*.egg-info/
+.pytest_cache/
+.DS_Store
+
+# SMPL model files are licensed and must not be committed.
+models/
+*.pkl
+*.npz

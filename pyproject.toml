@@ -1,0 +1,26 @@
+[project]
+name = "vh-toolbox"
+version = "0.1.0"
+description = "Interactive demos for the Virtual Humans lecture"
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "Gerard Pons-Moll" }]
+requires-python = ">=3.10"
+dependencies = [
+    "numpy>=1.24",
+    "viser>=1.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["vh"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
