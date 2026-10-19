@@ -10,6 +10,7 @@ code behind it is short enough to read and modify.
 | --- | --- | --- |
 | 1 | `demos/01_smpl_viewer.py` | SMPL body shape and pose, and each step of the model |
 | 2 | `demos/02_camera.py` | The pinhole camera: extrinsics, intrinsics, perspective and weak perspective |
+| 2 | `demos/02_lens.py` | The thin lens: focus and blur |
 
 ## Setup
 
@@ -160,6 +161,28 @@ the image show both heights.
 3. Why do the trees and the house grow while the people stay the same size?
 4. At which distance is the difference between the two people below 5 %? Compare with
    weak perspective in `demos/02_camera.py`.
+
+### The thin lens: focus and blur
+
+```bash
+python demos/02_lens.py
+```
+
+A ball stands in front of a tree, as in a portrait photograph. From the marked point
+on each object, rays go through the top, centre and bottom of the lens and meet again
+at the distance z' given by Gauss's formula 1/z + 1/z' = 1/f. At the start the ball
+is in focus: its rays meet on the sensor. The tree's rays meet in front of the
+sensor and have spread out again when they reach it, so the tree is blurred. The
+lens is drawn much larger than a real one so that the rays can be seen.
+
+1. Move *Sensor distance s* until the tree is sharp. What happens to the ball, and
+   where do its rays meet now?
+2. Go back to the start and change *Focal length f* instead. Which f makes the tree
+   sharp? Check your answer with the lens formula.
+3. Do the objects change size in the image when you refocus? Why?
+4. The ray through the centre of the lens is not bent. Why does that mean the lens
+   projects like a pinhole at distance s?
+5. Move the sensor closer than f. Can anything be sharp? Why not?
 
 ## Lecture 2.2: rotations and kinematic chains
 
