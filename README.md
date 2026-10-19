@@ -244,6 +244,7 @@ stores poses: the rotation of each joint relative to its parent, as axis-angle.
 - `vh/camera.py`: the pinhole camera: `look_at`, `project`, `project_cylinder`, `pixel_ray`.
 - `vh/render.py`: draws an image from projected points (nearest point wins).
 - `vh/scene.py`: coloured meshes for the camera demos, and taking a picture of them.
+- `vh/lens.py`: the thin lens: where a point is sharp, the size of its blur disc, and disc blur.
 - `vh/rotations.py`: rotation matrices, Euler angles, quaternions, axis-angle, SLERP.
 - `vh/kinematics.py`: twists, the product of exponentials and the articulated Jacobian.
 - `vh/geometry.py`: geometric helpers (ray-mesh intersection).
