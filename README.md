@@ -9,6 +9,7 @@ code behind it is short enough to read and modify.
 | Lecture | Demo | What you can explore |
 | --- | --- | --- |
 | 1 | `demos/01_smpl_viewer.py` | SMPL body shape and pose, and each step of the model |
+| 2 | `demos/02_camera.py` | The pinhole camera: extrinsics, intrinsics, perspective and weak perspective |
 
 ## Setup
 
@@ -78,9 +79,94 @@ right-drag to pan.
 7. Rotate `pelvis`. Does the pose blendshape offset change? Find the line in
    `vh/smpl.py` that explains your answer.
 
+## Lecture 2: the pinhole camera
+
+```bash
+python demos/02_camera.py
+python demos/02_camera.py --mesh path/to/your_mesh.obj     # any mesh, y axis up
+```
+
+A camera looks at an object. The 3D view shows the camera centre, its image
+plane (drawn at distance f from the centre) and the object. The panel shows the
+image this camera takes. That image is not drawn by the viewer: every point of
+the object goes through `project()` in `vh/camera.py`, so what you see is the
+formula from the slides. This demo also runs without the SMPL files (the scene
+is then shown without the person).
+
+- **Object**: a scene with depth (two rows of columns leading to a house, trees, and
+  the SMPL body in the middle), the SMPL body alone, a cube, a checkerboard, or your own mesh.
+- **Extrinsics**: the sliders orbit the camera around the object, always looking at its centre.
+  You can also grab the camera in the 3D view: drag the arrows to move it and the
+  rings to rotate it. The image and the numbers follow while you drag.
+- **Intrinsics**: focal length and principal point in pixels, and radial lens distortion.
+- **Projection**: perspective, weak perspective, or both on top of each other.
+- **Dolly zoom**: ties focal length to distance, so the object keeps its size in the image.
+- **A point and its ray**: click the object to pick a point (red). Its ray, its
+  coordinates in the world and in the camera, and its pixel are shown. The
+  slider moves a second point (blue) along the same ray.
+- **Look through the camera**: moves the 3D view to the camera, to compare with the image.
+
+### Things to try
+
+1. Increase the focal length. What happens to the image plane in the 3D view,
+   and why does the object get larger in the image?
+2. Press *Play* under *Dolly zoom* and watch the person, the columns and the
+   house. The person keeps their size: what changes? Can you tell from one image how far away the
+   camera was?
+3. The two rows of columns are parallel in 3D: are they parallel in the image?
+   Where do they meet? Then select the cube and look at its edges. Move the camera far away with *Keep the object's size* on. What happens
+   to them?
+4. Set *Projection* to "Both" and move the camera close to the body, with the
+   arm reaching towards it. Where is weak perspective wrong, and why there?
+   How far away must the camera be for the difference to drop below one pixel?
+5. Click a point and move the blue point along its ray. Does its pixel change?
+   Now switch to weak perspective and try again.
+6. Move the principal point. How does the image change? Compare with rotating the camera slightly.
+7. Select the checkerboard and change the lens distortion. Which lines stay straight?
+8. In `vh/camera.py`, which single line makes the projection nonlinear?
+
+### Depth is not distance: the long façade
+
+```bash
+python demos/02_facade.py
+```
+
+Should the far ends of a long façade be drawn smaller than its centre? A camera
+stands in front of a row of identical columns. The 3D view shows, for the red
+column and the middle one, the distance to the camera (orange) and the depth Z
+along the optical axis (blue), with the plane of equal depth. The table lists
+both for every column, and the height of each column in the image.
+
+1. The columns at the edge of the image are about twice as far away as the middle one. Why are they just as tall?
+2. Turn the camera. Which columns shrink now, and what happened to their depth? Where do the
+   lines through the column tops and feet meet (the blue cross), and how is that point K R d?
+3. Switch the image surface to a cylinder, as in a panorama stitched from photos.
+   Which rule gives the column heights now? Why do the straight beam and floor lines bend?
+4. Make f small and look at the outer columns on the flat image plane. Why are they
+   wider than the middle one, although they are as tall?
+
+### Telephoto compression: two people in one plane
+
+```bash
+python demos/02_telephoto.py
+```
+
+Two people stand one behind the other. *Play* moves the camera back to 100 m
+while zooming in, so the front person keeps their size. The bars on the right of
+the image show both heights.
+
+1. Write the ratio of the two image heights in terms of their depths. What does it go to far away?
+2. What focal length in millimetres does a full-frame camera need to take the last picture?
+3. Why do the trees and the house grow while the people stay the same size?
+4. At which distance is the difference between the two people below 5 %? Compare with
+   weak perspective in `demos/02_camera.py`.
+
 ## The code
 
 - `vh/smpl.py`: the whole SMPL forward pass in about 100 lines of NumPy.
+- `vh/camera.py`: the pinhole camera: `look_at`, `project`, `project_cylinder`, `pixel_ray`.
+- `vh/render.py`: draws an image from projected points (nearest point wins).
+- `vh/scene.py`: coloured meshes for the camera demos, and taking a picture of them.
 - `vh/geometry.py`: geometric helpers (ray-mesh intersection).
 - `demos/`: one viewer per lecture.
 - `scripts/prepare_smpl.py`: converts the official model files.
