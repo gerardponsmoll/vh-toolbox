@@ -161,12 +161,68 @@ the image show both heights.
 4. At which distance is the difference between the two people below 5 %? Compare with
    weak perspective in `demos/02_camera.py`.
 
+## Lecture 2.2: rotations and kinematic chains
+
+### Ways to write a rotation
+
+```bash
+python demos/02_rotations.py
+```
+
+A small airplane, turned in five ways (choose the page at the top). Every page
+also lists the same rotation as a matrix, Euler angles, a quaternion and an
+axis-angle vector, computed with `vh/rotations.py`.
+
+1. *Order matters*: press *Play*. Both airplanes turn 90 degrees about the same
+   three axes. Why do they end up different?
+2. *Rotation matrix*: drag the rings. Which column of R belongs to which arrow?
+   Tick *Mirror*: what happens to det R, and why is this not a rotation?
+3. *Euler angles*: press *Go to the gimbal lock* and move angle 1 and angle 3. Why do
+   they now do the same thing? Look at the Euler angles in the readout: are they the ones you set?
+4. *Interpolation*: press *Play*. Which row turns at constant speed? What happens
+   to the airplane in the matrix row halfway?
+5. *Axis-angle*: press *Play* and watch the quaternion. Where is it after one full turn,
+   and after two?
+
+### A kinematic chain and inverse kinematics
+
+```bash
+python demos/02_kinematic_chain.py
+```
+
+An arm with four revolute joints. Its pose is the product of exponentials of the
+joint twists (`vh/kinematics.py`). Drag the red target and press *One IK step*, or
+tick *Follow the target*.
+
+1. The coloured arrows at the hand are the columns of the Jacobian. Turn one joint a
+   little with its slider: does the hand move along that joint's arrow?
+2. Tick *Rest pose and its twists*. Why are the twists in the product of exponentials
+   the axes at the rest pose, and not the current ones?
+3. Put the target out of reach so that the arm stretches out straight. What happens
+   to the smallest singular value of J, and to the IK steps with damping 0?
+
+### Inverse kinematics on SMPL
+
+```bash
+python demos/02_smpl_ik.py
+```
+
+Drag the red target and the hand of the SMPL body follows. Every joint of the chain
+is a ball joint with three columns in the Jacobian. The result is stored the way SMPL
+stores poses: the rotation of each joint relative to its parent, as axis-angle.
+
+1. Change *Joints in the chain*. How does the motion change with 1, 4 and 8 joints?
+2. Pull the target through the body or bend the elbow backwards. What would you add
+   to stop poses that a person cannot make?
+
 ## The code
 
 - `vh/smpl.py`: the whole SMPL forward pass in about 100 lines of NumPy.
 - `vh/camera.py`: the pinhole camera: `look_at`, `project`, `project_cylinder`, `pixel_ray`.
 - `vh/render.py`: draws an image from projected points (nearest point wins).
 - `vh/scene.py`: coloured meshes for the camera demos, and taking a picture of them.
+- `vh/rotations.py`: rotation matrices, Euler angles, quaternions, axis-angle, SLERP.
+- `vh/kinematics.py`: twists, the product of exponentials and the articulated Jacobian.
 - `vh/geometry.py`: geometric helpers (ray-mesh intersection).
 - `demos/`: one viewer per lecture.
 - `scripts/prepare_smpl.py`: converts the official model files.

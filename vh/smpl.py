@@ -119,6 +119,22 @@ def rigid_weights(weights: np.ndarray) -> np.ndarray:
     return rigid
 
 
+def joint_transforms(R: np.ndarray, joints_rest: np.ndarray, parents: np.ndarray) -> np.ndarray:
+    """Forward kinematics: the world transform (K, 4, 4) of every joint.
+
+    Each local transform rotates by R[k] about the joint, expressed as a
+    rotation plus the offset of the joint from its parent, and is chained
+    down the tree: G[k] = G[parent] @ local[k].
+    """
+    G = np.zeros((len(parents), 4, 4))
+    for k, p in enumerate(parents):
+        local = np.eye(4)
+        local[:3, :3] = R[k]
+        local[:3, 3] = joints_rest[k] if p < 0 else joints_rest[k] - joints_rest[p]
+        G[k] = local if p < 0 else G[p] @ local
+    return G
+
+
 def forward(
     model: SMPLModel,
     betas: np.ndarray | None = None,
@@ -158,15 +174,7 @@ def forward(
         v_posed = v_shaped
 
     # 4a. Forward kinematics: chain the local transforms down the tree.
-    #     Each local transform rotates by R[k] about the joint, expressed as a
-    #     rotation plus the offset of the joint from its parent.
-    G = np.zeros((K, 4, 4))
-    for k in range(K):
-        p = model.parents[k]
-        local = np.eye(4)
-        local[:3, :3] = R[k]
-        local[:3, 3] = joints_rest[k] if p < 0 else joints_rest[k] - joints_rest[p]
-        G[k] = local if p < 0 else G[p] @ local
+    G = joint_transforms(R, joints_rest, model.parents)
     joints = G[:, :3, 3]
 
     # 4b. The vertices are given in the rest pose, so first undo the rest pose:
