@@ -10,7 +10,16 @@ code behind it is short enough to read and modify.
 | --- | --- | --- |
 | 1 | `demos/01_smpl_viewer.py` | SMPL body shape and pose, and each step of the model |
 | 2 | `demos/02_camera.py` | The pinhole camera: extrinsics, intrinsics, perspective and weak perspective |
+| 2 | `demos/02_facade.py` | Depth is not distance: a long façade, and panoramas |
+| 2 | `demos/02_telephoto.py` | Telephoto compression: two people seen from far away |
 | 2 | `demos/02_lens.py` | The thin lens: focus and blur |
+| 2.2 | `demos/02_rotations.py` | Ways to write a rotation: order, matrices, Euler angles and gimbal lock, interpolation, axis-angle |
+| 2.2 | `demos/02_kinematic_chain.py` | A kinematic chain: product of exponentials, the Jacobian, inverse kinematics |
+| 2.2 | `demos/02_smpl_ik.py` | Inverse kinematics on the SMPL body |
+
+`01_smpl_viewer` and `02_smpl_ik` need the SMPL model (see below). `02_camera` and
+`02_telephoto` use it when it is there and show simpler figures otherwise. The other
+demos run without it.
 
 ## Setup
 
