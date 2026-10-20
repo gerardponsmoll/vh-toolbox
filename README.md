@@ -37,6 +37,19 @@ pip install -e .
 
 If you use [uv](https://docs.astral.sh/uv/), `uv venv && uv pip install -e .` does the same.
 
+To open a demo in your browser:
+
+```bash
+python demo.py                  # list the demos
+python demo.py camera           # open one, by name or number
+python demo.py camera --fresh   # start it again from the beginning
+python demo.py --stop           # stop all demos
+```
+
+Each demo keeps running on its own port until you stop it, so opening it again is instant.
+You can also run a script directly, e.g. `python demos/02_camera.py`, and open
+http://localhost:8080.
+
 ## Get the SMPL model
 
 The SMPL model files are licensed and are not part of this repository.
@@ -243,7 +256,8 @@ Drag the red target and the hand of the SMPL body follows. Every joint of the ch
 is a ball joint with three columns in the Jacobian. The result is stored the way SMPL
 stores poses: the rotation of each joint relative to its parent, as axis-angle.
 
-1. Change *Joints in the chain*. How does the motion change with 1, 4 and 8 joints?
+1. Change *Joints in the chain*. How does the motion change with 1, 3 and 7 joints?
+   (The pelvis is never in the chain: turning it would turn the whole body.)
 2. Pull the target through the body or bend the elbow backwards. What would you add
    to stop poses that a person cannot make?
 

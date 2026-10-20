@@ -34,9 +34,11 @@ CHAIN_COLOR, BONE_COLOR, TARGET_COLOR = (240, 140, 0), (90, 90, 90), (230, 30, 3
 
 
 def chain_to_root(parents: np.ndarray, effector: int) -> list[int]:
-    """The joints that move the effector: its parent, grandparent, ..., the root."""
+    """The joints that move the effector: its parent, grandparent, ..., up to the pelvis.
+
+    The pelvis (the root) is left out: turning it would turn the whole body."""
     chain, k = [], parents[effector]
-    while k >= 0:
+    while k > 0:
         chain.append(int(k))
         k = parents[k]
     return chain
@@ -67,13 +69,16 @@ def main() -> None:
 
     pose = np.zeros((model.num_joints, 3))
     body = server.scene.add_mesh_simple("/body", forward(model).vertices.astype(np.float32), model.faces, color=SKIN, opacity=0.85)
-    target = server.scene.add_transform_controls("/target", scale=0.2, disable_rotations=True)
+    # Limits: dragging along an arrow that points at the viewer could otherwise throw the target far away.
+    target = server.scene.add_transform_controls(
+        "/target", scale=0.2, disable_rotations=True, translation_limits=((-1.2, 1.2), (0.0, 2.4), (-1.2, 1.2))
+    )
     server.scene.add_icosphere("/target/ball", radius=0.03, color=TARGET_COLOR)
 
     with server.gui.add_folder("Inverse kinematics"):
         gui_effector = server.gui.add_dropdown("End effector", list(EFFECTORS), initial_value="Right hand")
         gui_length = server.gui.add_slider(
-            "Joints in the chain", min=1, max=8, step=1, initial_value=4, hint="Counted from the effector towards the pelvis."
+            "Joints in the chain", min=1, max=7, step=1, initial_value=3, hint="Counted from the effector towards the pelvis, which stays fixed."
         )
         gui_follow = server.gui.add_checkbox("Follow the target", True)
         gui_step = server.gui.add_button("One IK step")
