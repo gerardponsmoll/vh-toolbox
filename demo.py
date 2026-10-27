@@ -36,6 +36,8 @@ DEMOS = {
     "rotations": ("2.2", "02_rotations.py", 8085),
     "chain": ("2.2", "02_kinematic_chain.py", 8086),
     "ik": ("2.2", "02_smpl_ik.py", 8087),
+    "icp": ("4.1", "04_icp_curves.py", 8088),
+    "icp3d": ("4.1", "04_icp.py", 8089),
 }
 
 
@@ -101,6 +103,8 @@ def resolve(key: str) -> str:
     names = list(DEMOS)
     if key.isdigit() and 1 <= int(key) <= len(names):
         return names[int(key) - 1]
+    if key.lower() in DEMOS:
+        return key.lower()
     matches = [n for n in names if n.startswith(key.lower()) or key.lower() in DEMOS[n][1]]
     if len(matches) != 1:
         raise SystemExit(f"Unknown demo {key!r}. Demos: {', '.join(names)}")

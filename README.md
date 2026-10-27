@@ -6,6 +6,10 @@ Interactive demos for the Virtual Humans lecture. Each demo opens a 3D viewer in
 your browser with controls for the quantities discussed in the lecture, and the
 code behind it is short enough to read and modify.
 
+The purpose is to teach the material while you can see the code: every Python demo runs
+on a short file in `vh/` that follows the notation of the slides, so you can read how a
+method works, change it, and watch what happens.
+
 | Lecture | Demo | What you can explore |
 | --- | --- | --- |
 | 1 | `demos/01_smpl_viewer.py` | SMPL body shape and pose, and each step of the model |
@@ -16,6 +20,8 @@ code behind it is short enough to read and modify.
 | 2.2 | `demos/02_rotations.py` | Ways to write a rotation: order, matrices, Euler angles and gimbal lock, interpolation, axis-angle |
 | 2.2 | `demos/02_kinematic_chain.py` | A kinematic chain: product of exponentials, the Jacobian, inverse kinematics |
 | 2.2 | `demos/02_smpl_ik.py` | Inverse kinematics on the SMPL body |
+| 4.1 | `demos/04_icp_curves.py` | ICP step by step on the curves of the slides, with Procrustes or gradient descent |
+| 4.1 | `demos/04_icp.py` | ICP in 3D: aligning a body to a noisy, partial scan with outliers |
 | 3.1 | `browser/03_1_surface_representations.html` | Implicit and explicit surfaces, CSG, level sets, meshes, Bézier curves and patches, subdivision |
 | 3.2 | `browser/03_2_procrustes.html` | Similarity transforms, the SVD, Procrustes alignment |
 | 4.1 | `browser/04_1_icp.html` | Closest points, ICP step by step, local minima, k-d trees, ICP in 3D |
@@ -267,6 +273,26 @@ stores poses: the rotation of each joint relative to its parent, as axis-angle.
 2. Pull the target through the body or bend the elbow backwards. What would you add
    to stop poses that a person cannot make?
 
+## Lecture 4.1: Iterative Closest Point
+
+```bash
+python demos/04_icp_curves.py
+python demos/04_icp.py
+```
+
+Both demos run on `vh/icp.py`: Procrustes, closest points, one ICP step, and gradient
+steps as an alternative to Procrustes, in about 100 lines. The browser page
+`browser/04_1_icp.html` shows the same ideas and more; these demos are the version whose
+code you can change.
+
+1. Curves: press *Find correspondences*, *Solve Procrustes* and *Apply the transform* in
+   turn, then *Run*. Set the initial rotation to 0 degrees: why does ICP stop in the wrong place?
+2. Switch the pairs to *Source -> target* with scale on. Why does the source shrink?
+3. Solve with *Gradient descent*. Find a step size that keeps up with Procrustes, one that
+   is too slow, and one that diverges.
+4. 3D: add outliers, run, then trim 15% of the pairs. What changes, and why?
+5. In `vh/icp.py`, change how the pairs are chosen or weighted, and run the demos again.
+
 ## Browser demos
 
 ```bash
@@ -288,6 +314,7 @@ one per idea from the slides. The body model page uses a procedural toy body, no
 - `vh/lens.py`: the thin lens: where a point is sharp, the size of its blur disc, and disc blur.
 - `vh/rotations.py`: rotation matrices, Euler angles, quaternions, axis-angle, SLERP.
 - `vh/kinematics.py`: twists, the product of exponentials and the articulated Jacobian.
+- `vh/icp.py`: Procrustes alignment, closest points, ICP and gradient-based ICP.
 - `vh/geometry.py`: geometric helpers (ray-mesh intersection).
 - `demos/`: one viewer per lecture.
 - `scripts/prepare_smpl.py`: converts the official model files.
