@@ -26,6 +26,7 @@ import viser
 from vh import JOINT_NAMES, SMPLModel, forward, joint_transforms, rodrigues
 from vh.kinematics import damped_least_squares
 from vh.rotations import exp_map, hat, log_map
+from vh.viewer import configure
 
 MODEL_DIR = Path(__file__).resolve().parent.parent / "models"
 EFFECTORS = {"Right hand": 23, "Left hand": 22, "Right foot": 11, "Left foot": 10, "Head": 15}
@@ -59,7 +60,7 @@ def main() -> None:
     lift = -forward(model).vertices[:, 1].min()  # stand the body on the floor
 
     server = viser.ViserServer(port=args.port)
-    server.gui.configure_theme(control_width="large")
+    configure(server)
     server.scene.set_up_direction("+y")
     server.scene.add_grid("/floor", width=4.0, height=4.0, plane="xz", cell_size=0.25, section_size=1.0)
     server.initial_camera.position = (1.2, 1.4, 2.8)

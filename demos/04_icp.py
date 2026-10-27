@@ -26,6 +26,7 @@ from vh import SMPLModel
 from vh.icp import icp_step, transform
 from vh.rotations import exp_map, log_map
 from vh.scene import BODY_POSES, body, sample, stick_figure
+from vh.viewer import configure
 
 MODEL_DIR = Path(__file__).resolve().parent.parent / "models"
 NUM_POINTS = 1500
@@ -62,7 +63,7 @@ def main() -> None:
     X = sample(shape, NUM_POINTS, seed=1).points
 
     server = viser.ViserServer(port=args.port)
-    server.gui.configure_theme(control_width="large")
+    configure(server)
     server.scene.set_up_direction("+y")
     server.scene.add_grid("/floor", width=8.0, height=8.0, plane="xz", cell_size=0.25, section_size=1.0)
     server.initial_camera.position = (0.6, 1.9, 4.6)

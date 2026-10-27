@@ -26,6 +26,7 @@ import numpy as np
 import viser
 
 from vh.icp import correspondences, gradient_steps, icp_step, procrustes, transform
+from vh.viewer import configure
 
 CURVES = Path(__file__).resolve().parent / "data" / "icp_curves.json"
 SOURCE_COLOR, TARGET_COLOR, START_COLOR, NEXT_COLOR, LINK_COLOR = (235, 120, 30), (40, 110, 220), (150, 150, 150), (40, 160, 70), (150, 150, 150)
@@ -62,7 +63,7 @@ def main() -> None:
     mx, my = X.mean(axis=0), Y.mean(axis=0)
 
     server = viser.ViserServer(port=args.port)
-    server.gui.configure_theme(control_width="large")
+    configure(server)
     server.scene.set_up_direction("+y")
     server.scene.add_line_segments("/target", segments(Y), colors=TARGET_COLOR, thickness=4.0, thickness_units="screen")
     server.scene.add_label("/target/name", "target Y", position=(float(Y[:, 0].mean()), float(Y[:, 1].min()) - 0.3, 0.0))

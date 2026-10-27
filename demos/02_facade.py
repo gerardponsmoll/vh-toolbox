@@ -26,6 +26,7 @@ import viser
 from vh.camera import intrinsics, look_at, project, project_cylinder, world_to_camera
 from vh.render import draw_line
 from vh.scene import clip_to_image, draw_segments, ground, merge, sample, show_camera, solid, take_picture
+from vh.viewer import configure
 
 WIDTH, HEIGHT = 640, 300  # image size in pixels
 EYE_HEIGHT = 1.6  # metres
@@ -70,7 +71,7 @@ def main() -> None:
     line_ends = np.array([[x, 0.0, zs[-1]] for x in xs] + [[xs[-1], 0.0, z] for z in zs])
 
     server = viser.ViserServer(port=args.port)
-    server.gui.configure_theme(control_width="large")
+    configure(server)
     server.scene.set_up_direction("+y")
     server.scene.add_mesh_trimesh("/facade", shape.trimesh())
     server.scene.add_grid("/ground", width=70.0, height=31.25, plane="xz", cell_size=2.5, section_size=2.5, position=(0.0, 0.0, 14.375))

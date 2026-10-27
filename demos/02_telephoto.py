@@ -25,6 +25,7 @@ from vh import SMPLModel
 from vh.camera import intrinsics, look_at, project, world_to_camera
 from vh.render import draw_line
 from vh.scene import body, draw_segments, merge, moved, sample, show_camera, solid, stick_figure, take_picture
+from vh.viewer import configure
 
 MODEL_DIR = Path(__file__).resolve().parent.parent / "models"
 
@@ -76,7 +77,7 @@ def main() -> None:
     line_ends = np.array([[x, 0.0, zs[-1]] for x in xs] + [[xs[-1], 0.0, z] for z in zs])
 
     server = viser.ViserServer(port=args.port)
-    server.gui.configure_theme(control_width="large")
+    configure(server)
     server.scene.set_up_direction("+y")
     server.scene.add_mesh_trimesh("/background", scenery.trimesh())
     server.scene.add_grid("/ground", width=30.0, height=150.0, plane="xz", cell_size=1.0, section_size=5.0, position=(0.0, 0.0, 45.0))

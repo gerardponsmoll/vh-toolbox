@@ -39,6 +39,7 @@ from vh.rotations import (
     slerp,
 )
 from vh.scene import merge, solid
+from vh.viewer import configure
 
 PAGES = ["1. Order matters", "2. Rotation matrix", "3. Euler angles and gimbal lock", "4. Interpolation", "5. Axis-angle"]
 AXIS_COLORS = {"x": (220, 50, 50), "y": (40, 160, 60), "z": (50, 90, 220)}
@@ -92,7 +93,7 @@ def main() -> None:
     plane_mesh = plane.trimesh()
 
     server = viser.ViserServer(port=args.port)
-    server.gui.configure_theme(control_width="large")
+    configure(server)
     server.scene.set_up_direction("+y")
     server.scene.add_grid("/floor", width=6.0, height=6.0, plane="xz", cell_size=0.5, section_size=1.0)
     server.initial_camera.position = (2.2, 2.4, 3.6)

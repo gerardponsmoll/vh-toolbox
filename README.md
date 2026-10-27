@@ -1,6 +1,7 @@
 # Virtual Humans Toolbox
 
-**Author:** Gerard Pons-Moll, University of Tübingen
+**Author:** Prof. Gerard Pons-Moll, [Real Virtual Humans Lab](https://virtualhumans.mpi-inf.mpg.de/), University of Tübingen,
+for the [Virtual Humans lecture](https://virtualhumans.mpi-inf.mpg.de/VH26/).
 
 Interactive demos for the Virtual Humans lecture. Each demo opens a 3D viewer in
 your browser with controls for the quantities discussed in the lecture, and the
@@ -316,6 +317,7 @@ one per idea from the slides. The body model page uses a procedural toy body, no
 - `vh/kinematics.py`: twists, the product of exponentials and the articulated Jacobian.
 - `vh/icp.py`: Procrustes alignment, closest points, ICP and gradient-based ICP.
 - `vh/geometry.py`: geometric helpers (ray-mesh intersection).
+- `vh/viewer.py`: the shared viewer setup (panel width, title bar).
 - `demos/`: one viewer per lecture.
 - `scripts/prepare_smpl.py`: converts the official model files.
 - `tests/`: run with `pip install -e ".[dev]" && pytest`.

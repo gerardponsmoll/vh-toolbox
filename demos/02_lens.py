@@ -25,6 +25,7 @@ import viser
 from vh.camera import intrinsics, look_at
 from vh.lens import blur_diameter, disc_blur, image_distance
 from vh.scene import merge, sample, solid, take_picture
+from vh.viewer import configure
 
 WIDTH, HEIGHT = 360, 240  # camera image size in pixels
 SENSOR_W, SENSOR_H = 0.9, 0.6  # sensor size, in the units of the scene
@@ -90,7 +91,7 @@ def main() -> None:
 
     objects = make_objects()
     server = viser.ViserServer(port=args.port)
-    server.gui.configure_theme(control_width="large")
+    configure(server)
     server.scene.set_up_direction("+y")
     # Seen from the side, a little behind the lens.
     server.initial_camera.position = (2.0, 0.9, 5.0)

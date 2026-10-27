@@ -23,6 +23,7 @@ import viser.transforms as tf
 
 from vh import JOINT_NAMES, SMPLModel, forward, rigid_weights
 from vh.geometry import ray_mesh_intersection
+from vh.viewer import configure
 
 MODEL_DIR = Path(__file__).resolve().parent.parent / "models"
 
@@ -76,6 +77,7 @@ def main() -> None:
     palette = joint_palette(num_joints)
 
     server = viser.ViserServer(port=args.port)
+    configure(server, control_width="medium")
     server.scene.set_up_direction("+y")
     floor = float(models[first].v_template[:, 1].min())
     server.scene.add_grid("/floor", width=4.0, height=4.0, plane="xz", position=(0.0, floor, 0.0))

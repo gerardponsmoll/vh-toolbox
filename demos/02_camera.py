@@ -27,6 +27,7 @@ from vh.camera import intrinsics, look_at, pixel_ray, project, world_to_camera
 from vh.geometry import ray_mesh_intersection
 from vh.render import draw_dots, draw_line, sample_surface, splat
 from vh.scene import BODY_POSES, LIGHT, Shape, body, checker_box, merge, solid
+from vh.viewer import configure
 
 MODEL_DIR = Path(__file__).resolve().parent.parent / "models"
 
@@ -145,7 +146,7 @@ def main() -> None:
     builders["Checkerboard"] = lambda: checker_box((2.0, 2.0, 0.04))
 
     server = viser.ViserServer(port=args.port)
-    server.gui.configure_theme(control_width="large")
+    configure(server)
     server.scene.set_up_direction("+y")
     server.scene.add_grid("/floor", width=FLOOR, height=FLOOR, plane="xz", cell_size=0.5, section_size=0.5)
 

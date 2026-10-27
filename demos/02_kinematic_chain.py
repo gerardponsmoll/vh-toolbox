@@ -26,6 +26,7 @@ import viser.transforms as tf
 
 from vh.kinematics import damped_least_squares, forward_kinematics, point_jacobian, revolute_twist
 from vh.scene import merge, solid
+from vh.viewer import configure
 
 # The arm in its rest pose (all angles 0): a column on the floor, then three segments along x.
 SHOULDER_HEIGHT = 0.5
@@ -68,7 +69,7 @@ def main() -> None:
     args = parser.parse_args()
 
     server = viser.ViserServer(port=args.port)
-    server.gui.configure_theme(control_width="large")
+    configure(server)
     server.scene.set_up_direction("+y")
     server.scene.add_grid("/floor", width=4.0, height=4.0, plane="xz", cell_size=0.25, section_size=1.0)
     server.initial_camera.position = (1.6, 1.3, 2.2)
