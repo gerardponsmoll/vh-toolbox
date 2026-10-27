@@ -1,0 +1,1070 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<meta name="claude:viewport-fit-sides" content="cover">
+<title>Body Model Lab</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;600&family=Source+Serif+4:ital,opsz,wght@0,8..60,600;1,8..60,400&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: lab shell — demo list on the left, one live demo at a time (stage + control panel). Tübingen red marks what you can act on. */
+:root{
+  --bg:#ffffff; --panel:#f5f6f7; --ink:#1d262e; --muted:#5d6872; --line:#e2e5e9;
+  --accent:#a51e37; --accent-ink:#ffffff; --gold:#8f7b3c; --slate:#3e5566;
+  --surface:#c9ced4; --canvas:#ffffff; --grid:#eef0f2;
+  --font-body:'Source Sans 3',system-ui,-apple-system,'Segoe UI',sans-serif;
+  --font-head:'Source Serif 4',Georgia,'Times New Roman',serif;
+  --font-mono:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#121519; --panel:#1a1f24; --ink:#e6eaee; --muted:#9aa5af; --line:#2a3138;
+  --accent:#e0566f; --accent-ink:#121519; --gold:#d4c28a; --slate:#9fb6c8;
+  --surface:#8d959d; --canvas:#121519; --grid:#1d2329; color-scheme:dark;
+}}
+:root[data-theme="dark"]{
+  --bg:#121519; --panel:#1a1f24; --ink:#e6eaee; --muted:#9aa5af; --line:#2a3138;
+  --accent:#e0566f; --accent-ink:#121519; --gold:#d4c28a; --slate:#9fb6c8;
+  --surface:#8d959d; --canvas:#121519; --grid:#1d2329; color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{background:var(--bg);color:var(--ink);font-family:var(--font-body);font-size:16px;line-height:1.5;-webkit-font-smoothing:antialiased}
+.top{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;padding-block:14px;padding-left:max(18px,env(safe-area-inset-left,0px));padding-right:max(18px,env(safe-area-inset-right,0px));border-bottom:1px solid var(--line)}
+.top h1{font-family:var(--font-head);font-weight:600;font-size:1.3rem;margin:0}
+.top .sub{color:var(--muted);font-size:.9rem}
+.shell{display:grid;grid-template-columns:250px minmax(0,1fr);min-height:calc(100% - 56px)}
+nav.demos{border-right:1px solid var(--line);padding-block:12px;padding-left:max(10px,env(safe-area-inset-left,0px));padding-right:10px}
+nav.demos a{display:block;padding:9px 12px;border-radius:8px;color:var(--ink);text-decoration:none;font-size:.95rem;line-height:1.3}
+nav.demos a small{display:block;color:var(--muted);font-size:.78rem;margin-top:2px}
+nav.demos a:hover{background:var(--panel)}
+nav.demos a[aria-current="page"]{background:var(--panel);color:var(--accent);font-weight:600}
+nav.demos a[aria-current="page"] small{font-weight:400}
+main{padding-block:18px 28px;padding-left:22px;padding-right:max(18px,env(safe-area-inset-right,0px));min-width:0}
+.demo-head{max-width:78ch}
+.demo-head h2{font-family:var(--font-head);font-weight:600;font-size:1.65rem;line-height:1.2;margin:0;text-wrap:balance}
+.demo-head p{margin:.4rem 0 0;color:var(--muted)}
+.demo-head p.try{color:var(--ink)}
+.demo-head p.try b{font-weight:600}
+.work{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:18px;margin-top:16px;align-items:start}
+.stage{position:relative;background:var(--canvas);border:1px solid var(--line);border-radius:12px;overflow:hidden;height:min(68vh,620px);min-height:340px;touch-action:none}
+.stage canvas{display:block}
+.stage.stack{display:grid;grid-template-rows:66fr 34fr}
+.stage.stack>div{position:relative;min-height:0;overflow:hidden}
+.stage.stack>div+div{border-top:1px solid var(--line)}
+.stage .tag{position:absolute;left:12px;top:10px;font-size:.78rem;color:var(--muted);background:color-mix(in srgb,var(--canvas) 85%,transparent);padding:2px 8px;border-radius:6px;pointer-events:none;z-index:2;white-space:nowrap}
+.stage .hint{position:absolute;right:12px;bottom:10px;font-size:.78rem;color:var(--muted);pointer-events:none;z-index:2}
+.cells{position:absolute;inset:0;pointer-events:none;z-index:2}
+.cells .rule{position:absolute;background:var(--line)}
+.lbl-layer{position:absolute;inset:0;pointer-events:none;z-index:2}
+.lbl{font-family:var(--font-head);font-style:italic;font-size:1rem;color:var(--ink);background:color-mix(in srgb,var(--canvas) 75%,transparent);padding:0 5px;border-radius:5px;white-space:nowrap}
+.lbl.plain{font-family:var(--font-body);font-style:normal;font-size:.78rem;color:var(--muted)}
+.loading{position:absolute;inset:0;display:grid;place-items:center;color:var(--muted);font-size:.95rem;z-index:3;background:var(--canvas)}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px;display:flex;flex-direction:column;gap:14px;min-width:0}
+.ctl label{display:flex;justify-content:space-between;gap:8px;font-size:.88rem;color:var(--ink);margin-bottom:4px}
+.ctl label output{font-family:var(--font-mono);font-size:.8rem;color:var(--muted)}
+input[type=range]{width:100%;accent-color:var(--accent)}
+.seg{display:flex;flex-wrap:wrap;gap:6px}
+.seg button,.btn{font:inherit;font-size:.86rem;border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:7px;padding:6px 10px;cursor:pointer}
+.seg button[aria-pressed="true"]{border-color:var(--accent);color:var(--accent);font-weight:600}
+.btn:hover,.seg button:hover{border-color:var(--accent)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);font-weight:600}
+.btn.primary:hover{filter:brightness(1.08)}
+.row{display:flex;gap:8px;flex-wrap:wrap}
+.chk{display:flex;align-items:center;gap:8px;font-size:.88rem;cursor:pointer}
+.chk input{accent-color:var(--accent);width:16px;height:16px}
+.group-title{font-size:.72rem;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin:2px 0 -6px}
+.read{font-family:var(--font-mono);font-size:.8rem;background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:10px 12px;display:grid;grid-template-columns:auto minmax(0,1fr);gap:4px 12px;overflow-x:auto;font-variant-numeric:tabular-nums}
+.read dt{color:var(--muted);font-family:var(--font-body);font-size:.84rem}
+.read dd{margin:0;color:var(--ink);white-space:pre-wrap;overflow-wrap:anywhere}
+.read .full{grid-column:1/-1}
+.read dd.full{margin:0 0 4px 10px}
+.verdict{font-size:.92rem;padding:8px 12px;border-radius:8px;background:var(--bg);border:1px solid var(--line)}
+sub{font-size:.72em;line-height:0}
+.note{margin:0;font-size:.86rem;color:var(--muted)}
+.bars{width:100%;height:130px;display:block;background:var(--bg);border:1px solid var(--line);border-radius:8px}
+.legend{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:.8rem;color:var(--muted)}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.legend i{display:inline-block;width:16px;height:3px;border-radius:2px}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.err{padding:20px;color:var(--muted)}
+@media (max-width:980px){.work{grid-template-columns:minmax(0,1fr)}}
+@media (max-width:760px){
+  .shell{grid-template-columns:minmax(0,1fr)}
+  nav.demos{border-right:none;border-bottom:1px solid var(--line);display:flex;gap:6px;overflow-x:auto;padding-right:max(10px,env(safe-area-inset-right,0px))}
+  nav.demos a{white-space:nowrap;flex:0 0 auto}
+  nav.demos a small{display:none}
+  main{padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+  .stage{height:62vh}
+}
+@media (prefers-reduced-motion:reduce){*{scroll-behavior:auto}}
+</style>
+
+<header class="top">
+  <h1>Body Model Lab</h1>
+  <span class="sub">Virtual Humans · Lecture 4.2 · interactive companions to the slides (toy models, no SMPL data)</span>
+</header>
+<div class="shell">
+  <nav class="demos" id="nav" aria-label="Demos"></nav>
+  <main id="main"><p class="err">Loading the 3D engine…</p></main>
+</div>
+
+<script type="importmap">
+{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"}}
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
+
+/* ───────────── helpers ───────────── */
+const tok = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+function h(tag, attrs = {}, ...kids) {
+  const e = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs)) {
+    if (k === 'class') e.className = v;
+    else if (k.startsWith('on') && typeof v === 'function') e.addEventListener(k.slice(2), v);
+    else if (v !== false && v != null) e.setAttribute(k, v === true ? '' : v);
+  }
+  for (const k of kids.flat()) { if (k == null) continue; e.append(k.nodeType ? k : document.createTextNode(String(k))); }
+  return e;
+}
+const fmt = (v, d = 2) => (Math.abs(v) < 0.5 * Math.pow(10, -d) ? 0 : v).toFixed(d);
+const sfmt = (v, d = 2) => (v >= -0.5 * Math.pow(10, -d) ? ' ' : '') + fmt(v, d);
+const clamp = (x, a, b) => Math.min(b, Math.max(a, x));
+const deg = r => r * 180 / Math.PI, rad = d => d * Math.PI / 180;
+const smoothstep = t => { t = clamp(t, 0, 1); return t * t * (3 - 2 * t); };
+const reduceMotion = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+function slider(panel, { id, label, min, max, step, value, f = v => v, onInput }) {
+  const out = h('output', { for: id }, f(value));
+  const inp = h('input', { type: 'range', id, min, max, step, value });
+  inp.addEventListener('input', () => { const v = parseFloat(inp.value); out.textContent = f(v); onInput(v); });
+  const wrap = h('div', { class: 'ctl' }, h('label', { for: id }, h('span', {}, label), out), inp);
+  panel.append(wrap);
+  return { wrap, input: inp, set(v) { inp.value = v; out.textContent = f(v); }, get value() { return parseFloat(inp.value); } };
+}
+function seg(panel, { id, label, options, value, onChange }) {
+  const box = h('div', { class: 'seg', role: 'group', 'aria-label': label || id, id });
+  const btns = options.map(([val, text]) => {
+    const b = h('button', { type: 'button', 'aria-pressed': String(val === value) }, text);
+    b.addEventListener('click', () => { btns.forEach(x => x.setAttribute('aria-pressed', 'false')); b.setAttribute('aria-pressed', 'true'); onChange(val); });
+    box.append(b); return b;
+  });
+  const wrap = h('div', { class: 'ctl' }, label ? h('label', {}, h('span', {}, label)) : null, box);
+  panel.append(wrap);
+  return { wrap, set(val) { btns.forEach((b, i) => b.setAttribute('aria-pressed', String(options[i][0] === val))); } };
+}
+function check(panel, { id, label, checked, onChange }) {
+  const inp = h('input', { type: 'checkbox', id }); inp.checked = !!checked;
+  inp.addEventListener('change', () => onChange(inp.checked));
+  const wrap = h('label', { class: 'chk', for: id }, inp, label);
+  panel.append(wrap); return { wrap, input: inp };
+}
+function button(parent, label, onClick, primary = false) {
+  const b = h('button', { type: 'button', class: 'btn' + (primary ? ' primary' : '') }, label);
+  b.addEventListener('click', onClick); parent.append(b); return b;
+}
+function readout(panel) {
+  const dl = h('dl', { class: 'read' }); panel.append(dl);
+  return { el: dl, set(rows) { dl.replaceChildren(...rows.flatMap(([k, v]) => { const long = String(v).includes('\n') || String(k).length + String(v).length > 30; return [h('dt', { class: long ? 'full' : null }, k), h('dd', { class: long ? 'full' : null }, v)]; })); } };
+}
+function verdict(panel) { const d = h('div', { class: 'verdict' }); panel.append(d); return d; }
+function groupTitle(panel, t) { panel.append(h('div', { class: 'group-title' }, t)); }
+function note(panel, t) { const p = h('p', { class: 'note' }, t); panel.append(p); return p; }
+function legend(panel, items) { const d = h('div', { class: 'legend' }, items.map(([c, t]) => h('span', {}, h('i', { style: `background:${c}` }), t))); panel.append(d); return d; }
+
+/* seeded random numbers so every student sees the same figures */
+function rng(seed) { return () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+function gauss(R) { let u = 0, v = 0; while (u < 1e-12) u = R(); v = R(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v); }
+
+/* small 3×3 linear algebra (row-major arrays) */
+const M3 = {
+  mul: (A, B) => A.map(r => [0, 1, 2].map(j => r[0] * B[0][j] + r[1] * B[1][j] + r[2] * B[2][j])),
+  T: A => [0, 1, 2].map(i => [A[0][i], A[1][i], A[2][i]]),
+  mv: (A, v) => [0, 1, 2].map(i => A[i][0] * v[0] + A[i][1] * v[1] + A[i][2] * v[2]),
+  det: A => A[0][0] * (A[1][1] * A[2][2] - A[1][2] * A[2][1]) - A[0][1] * (A[1][0] * A[2][2] - A[1][2] * A[2][0]) + A[0][2] * (A[1][0] * A[2][1] - A[1][1] * A[2][0]),
+  I: () => [[1, 0, 0], [0, 1, 0], [0, 0, 1]],
+  str: (A, d = 2) => A.map(r => r.map(x => sfmt(x, d)).join('  ')).join('\n')
+};
+const skew = w => [[0, -w[2], w[1]], [w[2], 0, -w[0]], [-w[1], w[0], 0]];
+/* Rodrigues: R = exp(ω̂) = I + sin‖ω‖ K + (1 − cos‖ω‖) K²,  K = ω̂ / ‖ω‖ */
+function rodrigues(w) {
+  const th = Math.hypot(w[0], w[1], w[2]); if (th < 1e-12) return M3.I();
+  const K = skew(w.map(x => x / th)), K2 = M3.mul(K, K), s = Math.sin(th), c = 1 - Math.cos(th);
+  return [0, 1, 2].map(i => [0, 1, 2].map(j => (i === j ? 1 : 0) + s * K[i][j] + c * K2[i][j]));
+}
+function logR(R) { // axis-angle ω from a rotation matrix
+  const c = clamp((R[0][0] + R[1][1] + R[2][2] - 1) / 2, -1, 1), th = Math.acos(c);
+  if (th < 1e-9) return [0, 0, 0];
+  if (Math.PI - th < 1e-4) {
+    const d = [R[0][0], R[1][1], R[2][2]], k = d.indexOf(Math.max(...d));
+    const v = [0, 1, 2].map(i => (R[i][k] + (i === k ? 1 : 0))); const n = Math.hypot(...v);
+    return v.map(x => x / n * th);
+  }
+  const f = th / (2 * Math.sin(th));
+  return [f * (R[2][1] - R[1][2]), f * (R[0][2] - R[2][0]), f * (R[1][0] - R[0][1])];
+}
+const Rx = a => [[1, 0, 0], [0, Math.cos(a), -Math.sin(a)], [0, Math.sin(a), Math.cos(a)]];
+const Ry = a => [[Math.cos(a), 0, Math.sin(a)], [0, 1, 0], [-Math.sin(a), 0, Math.cos(a)]];
+const Rz = a => [[Math.cos(a), -Math.sin(a), 0], [Math.sin(a), Math.cos(a), 0], [0, 0, 1]];
+const mat4 = (R, t = [0, 0, 0]) => new THREE.Matrix4().set(R[0][0], R[0][1], R[0][2], t[0], R[1][0], R[1][1], R[1][2], t[1], R[2][0], R[2][1], R[2][2], t[2], 0, 0, 0, 1);
+const str4 = (R, t, d = 2) => [0, 1, 2].map(i => [...R[i], t[i]].map(x => sfmt(x, d)).join(' ')).concat([' 0.00  0.00  0.00  1.00'.replace(/0\.00/g, fmt(0, d)).replace('1.00', fmt(1, d))]).join('\n');
+const vstr = (v, d = 2) => '(' + v.map(x => fmt(x, d)).join(', ') + ')';
+/* 3×4 affine transforms [R | t] as flat arrays (row-major) */
+const A34 = {
+  make: (R, t) => [R[0][0], R[0][1], R[0][2], t[0], R[1][0], R[1][1], R[1][2], t[1], R[2][0], R[2][1], R[2][2], t[2]],
+  mul: (A, B) => { const o = new Array(12); for (let i = 0; i < 3; i++) { for (let j = 0; j < 3; j++) o[4 * i + j] = A[4 * i] * B[j] + A[4 * i + 1] * B[4 + j] + A[4 * i + 2] * B[8 + j]; o[4 * i + 3] = A[4 * i] * B[3] + A[4 * i + 1] * B[7] + A[4 * i + 2] * B[11] + A[4 * i + 3]; } return o; },
+  ap: (A, p) => [A[0] * p[0] + A[1] * p[1] + A[2] * p[2] + A[3], A[4] * p[0] + A[5] * p[1] + A[6] * p[2] + A[7], A[8] * p[0] + A[9] * p[1] + A[10] * p[2] + A[11]]
+};
+
+/* colours as linear-space THREE.Color, for vertex colours */
+const lin = hex => new THREE.Color(hex);
+function ramp(c0, c1, t, out) { out.r = c0.r + (c1.r - c0.r) * t; out.g = c0.g + (c1.g - c0.g) * t; out.b = c0.b + (c1.b - c0.b) * t; return out; }
+
+/* three.js viewer with orbit controls (z up, like the slides) and optional HTML labels */
+function viewer(stage, { cam = [3.5, -4.5, 2.8], target = [0, 0, 0], labels = false, fov = 38 } = {}) {
+  const renderer = new THREE.WebGLRenderer({ antialias: true });
+  renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+  stage.append(renderer.domElement);
+  const scene = new THREE.Scene();
+  scene.background = new THREE.Color(tok('--canvas'));
+  const camera = new THREE.PerspectiveCamera(fov, 1, 0.01, 200);
+  camera.up.set(0, 0, 1); camera.position.set(...cam);
+  const controls = new OrbitControls(camera, renderer.domElement);
+  controls.target.set(...target); controls.enableDamping = true; controls.update();
+  addLights(scene);
+  let lr = null;
+  if (labels) { lr = new CSS2DRenderer(); lr.domElement.className = 'lbl-layer'; stage.append(lr.domElement); }
+  const ro = new ResizeObserver(() => {
+    const w = Math.max(1, stage.clientWidth), hh = Math.max(1, stage.clientHeight);
+    renderer.setSize(w, hh, false); renderer.domElement.style.width = '100%'; renderer.domElement.style.height = '100%';
+    if (lr) lr.setSize(w, hh);
+    camera.aspect = w / hh; camera.zoom = Math.min(1, (w / hh) * 1.25); camera.updateProjectionMatrix();
+  });
+  ro.observe(stage);
+  let raf = 0, frame = null;
+  const loop = () => { raf = requestAnimationFrame(loop); controls.update(); if (frame) frame(); renderer.render(scene, camera); if (lr) lr.render(scene, camera); };
+  loop();
+  return {
+    renderer, scene, camera, controls,
+    set onFrame(f) { frame = f; },
+    label(text, parent = scene, cls = '') { const d = h('div', { class: 'lbl ' + cls }, text); const o = new CSS2DObject(d); parent.add(o); return o; },
+    dispose() {
+      cancelAnimationFrame(raf); ro.disconnect(); controls.dispose();
+      scene.traverse(o => { if (o.geometry) o.geometry.dispose(); if (o.material) [].concat(o.material).forEach(m => { if (m.map) m.map.dispose(); m.dispose(); }); });
+      renderer.dispose(); renderer.domElement.remove(); if (lr) lr.domElement.remove();
+    }
+  };
+}
+function addLights(scene) {
+  scene.add(new THREE.HemisphereLight(0xffffff, 0x7d838a, 1.5));
+  const d1 = new THREE.DirectionalLight(0xffffff, 1.7); d1.position.set(3, -4, 6); scene.add(d1);
+  const d2 = new THREE.DirectionalLight(0xffffff, 0.45); d2.position.set(-5, 3, -2); scene.add(d2);
+}
+/* one renderer, one camera, several side-by-side cells (each shows its own group).
+   The grid of cells adapts to the stage so the content is as large as possible. */
+function multiViewer(stage, { cam, target, contentAspect = 1, fov = 32 }) {
+  const renderer = new THREE.WebGLRenderer({ antialias: true });
+  renderer.setPixelRatio(Math.min(devicePixelRatio, 2)); renderer.autoClear = false;
+  stage.append(renderer.domElement);
+  const scene = new THREE.Scene(); const bg = new THREE.Color(tok('--canvas'));
+  const camera = new THREE.PerspectiveCamera(fov, 1, 0.01, 100); camera.up.set(0, 0, 1); camera.position.set(...cam);
+  const controls = new OrbitControls(camera, renderer.domElement); controls.target.set(...target); controls.enableDamping = true; controls.update();
+  addLights(scene);
+  const overlay = h('div', { class: 'cells' }); stage.append(overlay);
+  let cells = [], W = 1, H = 1, lay = { cols: 1, rows: 1 };
+  function layout() {
+    const n = Math.max(1, cells.length); let best = null;
+    for (let cols = 1; cols <= n; cols++) { const rows = Math.ceil(n / cols); const s = Math.min(W / cols / contentAspect, H / rows); if (!best || s > best.s * 1.02) best = { cols, rows, s }; }
+    lay = best; const cw = W / lay.cols, ch = H / lay.rows; const kids = [];
+    cells.forEach((c, i) => { const col = i % lay.cols, row = Math.floor(i / lay.cols); c.tag.style.left = (col * cw + 10) + 'px'; c.tag.style.top = (row * ch + 8) + 'px'; kids.push(c.tag); });
+    for (let c = 1; c < lay.cols; c++) kids.push(h('div', { class: 'rule', style: `left:${c * cw}px;top:0;bottom:0;width:1px` }));
+    for (let r = 1; r < lay.rows; r++) kids.push(h('div', { class: 'rule', style: `top:${r * ch}px;left:0;right:0;height:1px` }));
+    overlay.replaceChildren(...kids);
+  }
+  const ro = new ResizeObserver(() => {
+    W = Math.max(1, stage.clientWidth); H = Math.max(1, stage.clientHeight);
+    renderer.setSize(W, H, false); renderer.domElement.style.width = '100%'; renderer.domElement.style.height = '100%'; layout();
+  });
+  ro.observe(stage);
+  let raf = 0, frame = null;
+  const loop = () => {
+    raf = requestAnimationFrame(loop); controls.update(); if (frame) frame();
+    renderer.setScissorTest(false); renderer.setClearColor(bg, 1); renderer.clear(); renderer.setScissorTest(true);
+    const cw = W / lay.cols, ch = H / lay.rows;
+    cells.forEach((c, i) => {
+      const col = i % lay.cols, row = Math.floor(i / lay.cols); const x = col * cw, y = H - (row + 1) * ch;
+      renderer.setViewport(x, y, cw, ch); renderer.setScissor(x, y, cw, ch);
+      cells.forEach((o, j) => { o.group.visible = j === i; });
+      camera.aspect = cw / ch; camera.zoom = Math.min(1, camera.aspect / contentAspect); camera.updateProjectionMatrix();
+      renderer.render(scene, camera);
+    });
+  };
+  loop();
+  return {
+    scene, camera, controls, renderer,
+    set onFrame(f) { frame = f; },
+    setCells(list) { cells.forEach(c => scene.remove(c.group)); cells = list.map(([group, text]) => { scene.add(group); return { group, tag: h('div', { class: 'tag' }, text) }; }); layout(); },
+    dispose() {
+      cancelAnimationFrame(raf); ro.disconnect(); controls.dispose();
+      scene.traverse(o => { if (o.geometry) o.geometry.dispose(); if (o.material) [].concat(o.material).forEach(m => { if (m.map) m.map.dispose(); m.dispose(); }); });
+      renderer.dispose(); renderer.domElement.remove(); overlay.remove();
+    }
+  };
+}
+/* 2D canvas that tracks its host size */
+function canvas2d(host, draw) {
+  const c = h('canvas'); host.append(c); const ctx = c.getContext('2d'); const S = { W: 0, H: 0 };
+  function layout() { const r = host.getBoundingClientRect(); const dpr = Math.min(devicePixelRatio, 2); S.W = r.width; S.H = r.height; c.width = Math.max(1, Math.round(S.W * dpr)); c.height = Math.max(1, Math.round(S.H * dpr)); c.style.width = S.W + 'px'; c.style.height = S.H + 'px'; ctx.setTransform(dpr, 0, 0, dpr, 0, 0); }
+  const api = { canvas: c, ctx, S, redraw() { if (S.W) { ctx.clearRect(0, 0, S.W, S.H); draw(api); } }, dispose() { ro.disconnect(); c.remove(); } };
+  const ro = new ResizeObserver(() => { layout(); api.redraw(); }); ro.observe(host);
+  return api;
+}
+/* simple 3D primitives */
+function arrowObj(color, len = 1, head = 0.12, width = 0.06) { const a = new THREE.ArrowHelper(new THREE.Vector3(1, 0, 0), new THREE.Vector3(), len, new THREE.Color(color).getHex(), head, width); return a; }
+function frameObj(len, cols, opacity = 1) {
+  const g = new THREE.Group();
+  [[1, 0, 0], [0, 1, 0], [0, 0, 1]].forEach((d, i) => { const a = arrowObj(cols[i], len, len * 0.16, len * 0.09); a.setDirection(new THREE.Vector3(...d)); if (opacity < 1) { a.line.material.transparent = a.cone.material.transparent = true; a.line.material.opacity = a.cone.material.opacity = opacity; } g.add(a); });
+  return g;
+}
+function cylBetween(mesh, a, b) { const A = new THREE.Vector3(...a), B = new THREE.Vector3(...b); const d = B.clone().sub(A); const L = d.length(); mesh.position.copy(A).add(B).multiplyScalar(0.5); mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), L > 1e-9 ? d.normalize() : new THREE.Vector3(0, 1, 0)); mesh.scale.set(1, Math.max(L, 1e-6), 1); }
+function tubeLine(points, radius, color) { const curve = new THREE.CatmullRomCurve3(points.map(p => new THREE.Vector3(...p))); return new THREE.Mesh(new THREE.TubeGeometry(curve, Math.max(8, points.length * 2), radius, 8, false), new THREE.MeshBasicMaterial({ color })); }
+function dashedLine(points, color, opacity = 0.8) { const g = new THREE.BufferGeometry().setFromPoints(points.map(p => new THREE.Vector3(...p))); const l = new THREE.Line(g, new THREE.LineDashedMaterial({ color, dashSize: 0.06, gapSize: 0.045, transparent: true, opacity })); l.computeLineDistances(); return l; }
+function checkerTexture(nu, nv, c0, c1) {
+  const cv = document.createElement('canvas'); cv.width = 64 * nu; cv.height = 64 * nv; const x = cv.getContext('2d');
+  for (let i = 0; i < nu; i++) for (let j = 0; j < nv; j++) { x.fillStyle = (i + j) % 2 ? c1 : c0; x.fillRect(i * 64, j * 64, 64, 64); }
+  const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; return t;
+}
+function mixHex(a, b, t) { const A = new THREE.Color(a), B = new THREE.Color(b); return '#' + A.lerp(B, t).getHexString(); }
+
+/* ───────────── demos ───────────── */
+const DEMOS = [];
+
+/* 1 — exponential map */
+DEMOS.push({
+  id: 'exp-map', title: 'Exponential map', note: 'ω ↦ R = exp(ω̂) (Rodrigues)',
+  lead: 'An axis-angle vector ω stores a rotation in three numbers: its direction ω/‖ω‖ is the axis and its length ‖ω‖ is the angle. Rodrigues’ formula turns it into a rotation matrix, R = exp(ω̂) = I + sin‖ω‖ K + (1 − cos‖ω‖) K², where ω̂ is the skew-symmetric matrix of ω and K = ω̂/‖ω‖ that of the unit axis.',
+  tryText: ['Move the three components of ω, then ', 'press Play', ' to watch exp(tω̂) sweep from t = 0 to t = 1. The axis ω/‖ω‖ is the only direction that R leaves unchanged.'],
+  mount(stage, panel) {
+    const V = viewer(stage, { cam: [3.3, -3.9, 2.3], labels: true });
+    const C = { acc: tok('--accent'), gold: tok('--gold'), slate: tok('--slate'), ink: tok('--ink'), muted: tok('--muted'), surf: tok('--surface') };
+    // world axes
+    const axes = new THREE.Group(); V.scene.add(axes);
+    [[1, 0, 0, 'x'], [0, 1, 0, 'y'], [0, 0, 1, 'z']].forEach(([a, b, c, n]) => {
+      const g = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0, 0, 0), new THREE.Vector3(a * 1.7, b * 1.7, c * 1.7)]);
+      axes.add(new THREE.Line(g, new THREE.LineBasicMaterial({ color: C.muted, transparent: true, opacity: 0.6 })));
+      V.label(n, axes, 'plain').position.set(a * 1.82, b * 1.82, c * 1.82);
+    });
+    const makeBody = op => {
+      const g = new THREE.Group();
+      const m1 = new THREE.MeshStandardMaterial({ color: C.surf, roughness: 0.7, transparent: op < 1, opacity: op, depthWrite: op >= 1 });
+      const m2 = new THREE.MeshStandardMaterial({ color: C.gold, roughness: 0.6, transparent: op < 1, opacity: op, depthWrite: op >= 1 });
+      const box = new THREE.Mesh(new THREE.BoxGeometry(0.85, 0.46, 0.2), m1); box.position.x = 0.12; g.add(box);
+      const fin = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.06, 0.26), m1); fin.position.set(-0.12, 0, 0.2); g.add(fin);
+      const nose = new THREE.Mesh(new THREE.ConeGeometry(0.15, 0.32, 28), m2); nose.rotation.z = -Math.PI / 2; nose.position.x = 0.7; g.add(nose);
+      return g;
+    };
+    const ghost = makeBody(0.16); V.scene.add(ghost);
+    const obj = makeBody(1); obj.matrixAutoUpdate = false; V.scene.add(obj);
+    const frame = frameObj(1.0, [C.ink, C.gold, C.slate]); obj.add(frame);
+    const gframe = frameObj(1.0, [C.muted, C.muted, C.muted], 0.45); V.scene.add(gframe);
+    const axisArrow = arrowObj(C.acc, 1.45, 0.16, 0.09); V.scene.add(axisArrow);
+    const axisLine = new THREE.Line(new THREE.BufferGeometry(), new THREE.LineDashedMaterial({ color: C.acc, dashSize: 0.07, gapSize: 0.05 })); V.scene.add(axisLine);
+    const wLabel = V.label('ω/‖ω‖'); const pLabel = V.label('Rp');
+    const orbit = new THREE.LineLoop(new THREE.BufferGeometry(), new THREE.LineBasicMaterial({ color: C.muted, transparent: true, opacity: 0.55 })); V.scene.add(orbit);
+    let arc = null; const tip = new THREE.Mesh(new THREE.SphereGeometry(0.04, 16, 10), new THREE.MeshBasicMaterial({ color: C.acc })); V.scene.add(tip);
+    const p0 = [1, 0, 0];
+    const S = { w: [0.6, -0.3, 1.1], t: 1, anim: 0 };
+    const sl = {};
+    function update() {
+      const w = S.w, th = Math.hypot(...w); const R = rodrigues(w.map(x => x * S.t));
+      obj.matrix.copy(mat4(R)); obj.matrixWorldNeedsUpdate = true;
+      const ax = th > 1e-9 ? w.map(x => x / th) : [0, 0, 1];
+      const A = new THREE.Vector3(...ax);
+      axisArrow.setDirection(A); axisArrow.visible = th > 1e-9;
+      axisLine.geometry.dispose(); axisLine.geometry = new THREE.BufferGeometry().setFromPoints([A.clone().multiplyScalar(-2.0), A.clone().multiplyScalar(2.0)]); axisLine.computeLineDistances(); axisLine.visible = th > 1e-9;
+      wLabel.position.copy(A).multiplyScalar(1.62); wLabel.visible = th > 1e-9;
+      // orbit of p0 around the axis and the swept arc
+      const c = A.clone().multiplyScalar(A.dot(new THREE.Vector3(...p0))); const u = new THREE.Vector3(...p0).sub(c); const rr = u.length(); const v = A.clone().cross(u);
+      const pts = []; for (let i = 0; i < 96; i++) { const a = 2 * Math.PI * i / 96; pts.push(c.clone().add(u.clone().multiplyScalar(Math.cos(a))).add(v.clone().multiplyScalar(Math.sin(a)))); }
+      orbit.geometry.dispose(); orbit.geometry = new THREE.BufferGeometry().setFromPoints(pts); orbit.visible = th > 1e-9 && rr > 1e-3;
+      if (arc) { V.scene.remove(arc); arc.geometry.dispose(); arc.material.dispose(); arc = null; }
+      const sweep = th * S.t;
+      if (th > 1e-9 && rr > 1e-3 && sweep > 0.02) { const ap = []; const n = Math.max(6, Math.ceil(sweep / 0.05)); for (let i = 0; i <= n; i++) { const a = sweep * i / n; ap.push(c.clone().add(u.clone().multiplyScalar(Math.cos(a))).add(v.clone().multiplyScalar(Math.sin(a))).toArray()); } arc = tubeLine(ap, 0.016, C.acc); V.scene.add(arc); }
+      const q = M3.mv(R, p0); tip.position.set(...q); pLabel.position.set(q[0] * 1.12, q[1] * 1.12, q[2] * 1.12 + 0.08);
+      const Rf = rodrigues(w);
+      rd.set([
+        ['ω', vstr(w)], ['‖ω‖ (angle)', `${fmt(th, 3)} rad = ${fmt(deg(th), 1)}°`], ['unit axis ω/‖ω‖', th > 1e-9 ? vstr(ax, 3) : 'undefined (no rotation)'],
+        ['skew matrix ω̂', M3.str(skew(w))], ['R = exp(ω̂)', M3.str(Rf, 3)], ['R applied to the axis', th > 1e-9 ? vstr(M3.mv(Rf, ax), 3) + ' (unchanged)' : '—'], ['det R', fmt(M3.det(Rf), 4)]
+      ]);
+      msg.textContent = th > Math.PI + 1e-6 ? `‖ω‖ > π. The same rotation is also described by the angle 2π − ‖ω‖ = ${fmt(deg(2 * Math.PI - th), 1)}° about the opposite axis, so axis-angle vectors are not unique.` : th < 1e-9 ? 'ω = 0 gives R = I. The axis is undefined, which is one reason the zero rotation needs care in code.' : `Every point turns by ${fmt(deg(th), 1)}° on a circle around the axis; the red arc is the path of the point p = (1, 0, 0).`;
+      Object.entries(sl).forEach(([k, s]) => s.set(S.w[k]));
+    }
+    groupTitle(panel, 'Axis-angle vector ω (radians)');
+    ['x', 'y', 'z'].forEach((n, i) => sl[i] = slider(panel, { id: 'em-w' + n, label: 'ω_' + n, min: -3.14, max: 3.14, step: 0.01, value: S.w[i], f: v => fmt(v), onInput: v => { S.w[i] = v; S.t = 1; update(); } }));
+    const r1 = h('div', { class: 'row' }); panel.append(r1);
+    const play = () => {
+      cancelAnimationFrame(S.anim); if (reduceMotion()) { S.t = 1; update(); return; }
+      const t0 = performance.now(); const tick = now => { S.t = clamp((now - t0) / 1600, 0, 1); update(); if (S.t < 1) S.anim = requestAnimationFrame(tick); }; S.anim = requestAnimationFrame(tick);
+    };
+    button(r1, 'Play exp(tω̂)', play, true);
+    groupTitle(panel, 'Presets');
+    const r2 = h('div', { class: 'row' }); panel.append(r2);
+    const preset = w => () => { S.w = w.slice(); S.t = 1; update(); play(); };
+    button(r2, '90° about z', preset([0, 0, Math.PI / 2])); button(r2, '180° about x', preset([Math.PI, 0, 0]));
+    const k = 2 * Math.PI / 3 / Math.sqrt(3); button(r2, '120° about (1,1,1)', preset([k, k, k])); button(r2, 'ω = 0', preset([0, 0, 0]));
+    const rd = readout(panel); const msg = verdict(panel);
+    note(panel, 'Grey: the object before rotation. Frame axes: x ink, y gold, z slate. The 120° preset about (1, 1, 1) permutes the three axes.');
+    update();
+    return () => { cancelAnimationFrame(S.anim); V.dispose(); };
+  }
+});
+
+/* 2 — kinematic chain */
+DEMOS.push({
+  id: 'kinematic-chain', title: 'Kinematic chain', note: 'p_s = G(ω₁, j₁) G(ω₂, j₂) p_b',
+  lead: 'Each rotational joint contributes a rigid motion G(ω, j) = [exp(ω̂), j − j_parent; 0, 1]. A point fixed to the second link, with body coordinates p_b, reaches the spatial frame S through the product of the transformations along the chain: p_s = G(ω₁, j₁) G(ω₂, j₂) p_b.',
+  tryText: ['Rotate the two joints and ', 'compare the printed p_s with the red point', '. Moving joint 1 carries link 2 and its frame B along; moving joint 2 leaves link 1 untouched.'],
+  mount(stage, panel) {
+    const V = viewer(stage, { cam: [1.6, -5.2, 2.2], target: [1.2, 0, 0.7], labels: true });
+    const C = { acc: tok('--accent'), gold: tok('--gold'), slate: tok('--slate'), ink: tok('--ink'), muted: tok('--muted'), surf: tok('--surface') };
+    const j1 = [0.5, 0, 0.5], j2 = [1.5, 0, 0.5], pb = [0.95, 0, 0];
+    const AX = { '-y': [0, -1, 0], z: [0, 0, 1], x: [1, 0, 0] };
+    const S = { a1: 25, a2: 40, ax1: '-y', ax2: '-y' };
+    const grid = new THREE.GridHelper(4, 16, tok('--line'), tok('--line')); grid.rotation.x = Math.PI / 2; grid.position.set(1.2, 0, -0.02); V.scene.add(grid);
+    V.scene.add(frameObj(0.45, [C.ink, C.gold, C.slate])); V.label('S').position.set(-0.12, 0, -0.12);
+    const linkMat = new THREE.MeshStandardMaterial({ color: C.surf, roughness: 0.6 });
+    const link1 = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.09, 1, 32), linkMat), link2 = new THREE.Mesh(new THREE.CylinderGeometry(0.075, 0.075, 1, 32), linkMat); V.scene.add(link1, link2);
+    const jMat = new THREE.MeshStandardMaterial({ color: C.gold, roughness: 0.5 });
+    const J1 = new THREE.Mesh(new THREE.SphereGeometry(0.12, 24, 16), jMat), J2 = new THREE.Mesh(new THREE.SphereGeometry(0.105, 24, 16), jMat); V.scene.add(J1, J2);
+    const P = new THREE.Mesh(new THREE.SphereGeometry(0.06, 20, 12), new THREE.MeshBasicMaterial({ color: C.acc })); V.scene.add(P);
+    const f1 = frameObj(0.38, [C.ink, C.gold, C.slate]), fB = frameObj(0.38, [C.ink, C.gold, C.slate]); V.scene.add(f1, fB);
+    f1.matrixAutoUpdate = false; fB.matrixAutoUpdate = false;
+    V.scene.add(dashedLine([j1, j2, [j2[0] + pb[0], j2[1] + pb[1], j2[2] + pb[2]]], C.muted, 0.7));
+    const L1 = V.label('j₁'), L2 = V.label('j₂'), LB = V.label('B'), LP = V.label('p_s');
+    const sl = {};
+    function update() {
+      const R1 = rodrigues(AX[S.ax1].map(x => x * rad(S.a1))), R2 = rodrigues(AX[S.ax2].map(x => x * rad(S.a2)));
+      const G1 = A34.make(R1, j1), G2 = A34.make(R2, [j2[0] - j1[0], j2[1] - j1[1], j2[2] - j1[2]]);
+      const j2w = A34.ap(G1, [j2[0] - j1[0], j2[1] - j1[1], j2[2] - j1[2]]);
+      const G12 = A34.mul(G1, G2); const ps = A34.ap(G12, pb);
+      cylBetween(link1, j1, j2w); cylBetween(link2, j2w, ps);
+      J1.position.set(...j1); J2.position.set(...j2w); P.position.set(...ps);
+      f1.matrix.copy(mat4(R1, j1)); fB.matrix.copy(mat4(M3.mul(R1, R2), j2w));
+      L1.position.set(j1[0] - 0.05, 0, j1[2] - 0.22); L2.position.set(j2w[0], j2w[1], j2w[2] - 0.22); LB.position.set(...A34.ap(G12, [0.05, 0, 0.45])); LP.position.set(ps[0] + 0.12, ps[1], ps[2] + 0.14);
+      rd.set([
+        ['ω₁', `${S.a1}° · ${S.ax1} axis`], ['ω₂', `${S.a2}° · ${S.ax2} axis`],
+        ['G(ω₁, j₁)', str4(R1, j1)], ['G(ω₂, j₂)', str4(R2, [j2[0] - j1[0], j2[1] - j1[1], j2[2] - j1[2]])],
+        ['p_b (in frame B)', vstr(pb)], ['p_s = G₁ G₂ p_b', vstr(ps, 3)]
+      ]);
+    }
+    groupTitle(panel, 'Joint 1 (at j₁)');
+    sl.a1 = slider(panel, { id: 'kc-a1', label: 'angle ‖ω₁‖', min: -180, max: 180, step: 1, value: S.a1, f: v => v + '°', onInput: v => { S.a1 = v; update(); } });
+    seg(panel, { id: 'kc-ax1', label: 'axis of ω₁', options: [['-y', 'out of screen (−y)'], ['z', 'z'], ['x', 'x']], value: S.ax1, onChange: v => { S.ax1 = v; update(); } });
+    groupTitle(panel, 'Joint 2 (at j₂)');
+    sl.a2 = slider(panel, { id: 'kc-a2', label: 'angle ‖ω₂‖', min: -180, max: 180, step: 1, value: S.a2, f: v => v + '°', onInput: v => { S.a2 = v; update(); } });
+    seg(panel, { id: 'kc-ax2', label: 'axis of ω₂', options: [['-y', 'out of screen (−y)'], ['z', 'z'], ['x', 'x']], value: S.ax2, onChange: v => { S.ax2 = v; update(); } });
+    const rd = readout(panel);
+    note(panel, 'Dashed: the chain in its zero pose. The translation of G(ω₂, j₂) is j₂ − j₁, the offset from the parent joint, so the product stacks the links. Frame B moves with link 2; p_b never changes.');
+    update();
+    return () => V.dispose();
+  }
+});
+
+/* ───── the "arm": a capsule-shaped tube along x with an elbow at the origin ───── */
+const ARM = { r: 0.22, half: 1 };
+function armMesh({ r = ARM.r, half = ARM.half, nRad = 56, step = 0.02, nCap = 10 } = {}) {
+  const rings = [];
+  for (let i = 0; i <= nCap; i++) { const ph = -Math.PI / 2 + (Math.PI / 2) * i / nCap; rings.push([-half + r * Math.sin(ph), r * Math.cos(ph), 0]); }
+  const nS = Math.round(half / step);
+  for (let i = 1; i <= nS; i++) rings.push([-half + half * i / nS, r, 0]);
+  const ringA = rings.length - 1; rings.push([0, r, 1]); const ringB = rings.length - 1;
+  for (let i = 1; i <= nS; i++) rings.push([half * i / nS, r, 1]);
+  for (let i = 1; i <= nCap; i++) { const ph = (Math.PI / 2) * i / nCap; rings.push([half + r * Math.sin(ph), r * Math.cos(ph), 1]); }
+  const s = [0]; for (let q = 1; q < rings.length; q++) s.push(s[q - 1] + Math.hypot(rings[q][0] - rings[q - 1][0], rings[q][1] - rings[q - 1][1]));
+  const Ltot = s[s.length - 1], nr = nRad + 1, N = rings.length * nr;
+  const pos = new Float32Array(N * 3), uv = new Float32Array(N * 2), part = new Uint8Array(N), rest = new Float64Array(N * 3), ring = new Int32Array(N);
+  rings.forEach(([x, rho, sg], q) => { for (let j = 0; j < nr; j++) { const i = q * nr + j, a = 2 * Math.PI * j / nRad; rest[3 * i] = pos[3 * i] = x; rest[3 * i + 1] = pos[3 * i + 1] = rho * Math.cos(a); rest[3 * i + 2] = pos[3 * i + 2] = rho * Math.sin(a); uv[2 * i] = s[q] / Ltot; uv[2 * i + 1] = j / nRad; part[i] = sg; ring[i] = q; } });
+  const idx = [];
+  for (let q = 0; q < rings.length - 1; q++) { if (q === ringA) continue; for (let j = 0; j < nRad; j++) { const a = q * nr + j, b = a + 1, c = a + nr, d = c + 1; idx.push(a, b, c, b, d, c); } }
+  const seams = []; for (let q = 0; q < rings.length; q++) seams.push([q * nr, q * nr + nRad]);
+  const ab = []; for (let j = 0; j < nr; j++) ab.push([ringA * nr + j, ringB * nr + j]);
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(pos, 3)); g.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
+  g.setAttribute('color', new THREE.BufferAttribute(new Float32Array(N * 3).fill(1), 3));
+  g.setIndex(idx); g.computeVertexNormals();
+  return { g, N, rest, part, ring, nRings: rings.length, seams, ab, ringA, ringB, nr, nRad, Ltot };
+}
+function fixNormals(g, pairs) { const n = g.attributes.normal.array; for (const [i, j] of pairs) { for (let d = 0; d < 3; d++) { const m = (n[3 * i + d] + n[3 * j + d]) / 2; n[3 * i + d] = n[3 * j + d] = m; } } g.attributes.normal.needsUpdate = true; }
+function meshVolume(pos, index) { let v = 0; for (let t = 0; t < index.length; t += 3) { const a = 3 * index[t], b = 3 * index[t + 1], c = 3 * index[t + 2]; v += pos[a] * (pos[b + 1] * pos[c + 2] - pos[b + 2] * pos[c + 1]) - pos[a + 1] * (pos[b] * pos[c + 2] - pos[b + 2] * pos[c]) + pos[a + 2] * (pos[b] * pos[c + 1] - pos[b + 1] * pos[c]); } return v / 6; }
+const armWeight = (x, width) => smoothstep((x + width / 2) / width);   // weight of the forearm bone
+function armRotation(alpha, tau) { // forearm rotation R₁ = R_bend(α) R_twist(τ), bend about −y so that α > 0 lifts the forearm
+  const qb = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), -alpha), qt = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), tau);
+  const q = qb.multiply(qt); const R = M3.mul(Ry(-alpha), Rx(tau)); return { q, R };
+}
+/* pose the arm: mode 0 rigid parts, 1 LBS, 2 DQS (rotations about the elbow, so dual quaternions reduce to blended unit quaternions) */
+function poseArm(out, A, mode, w, rot, add = null) {
+  const R = rot.R, q = rot.q; const sgn = q.w < 0 ? -1 : 1; const qx = q.x * sgn, qy = q.y * sgn, qz = q.z * sgn, qw = q.w * sgn;
+  for (let i = 0; i < A.N; i++) {
+    let x = A.rest[3 * i], y = A.rest[3 * i + 1], z = A.rest[3 * i + 2];
+    if (add) { x += add[3 * i]; y += add[3 * i + 1]; z += add[3 * i + 2]; }
+    const wi = mode === 0 ? A.part[i] : w[i];
+    if (mode === 2) {
+      let bx = qx * wi, by = qy * wi, bz = qz * wi, bw = (1 - wi) + qw * wi; const n = Math.hypot(bx, by, bz, bw); bx /= n; by /= n; bz /= n; bw /= n;
+      const tx = 2 * (by * z - bz * y), ty = 2 * (bz * x - bx * z), tz = 2 * (bx * y - by * x);
+      out[3 * i] = x + bw * tx + (by * tz - bz * ty); out[3 * i + 1] = y + bw * ty + (bz * tx - bx * tz); out[3 * i + 2] = z + bw * tz + (bx * ty - by * tx);
+    } else {
+      const rx = R[0][0] * x + R[0][1] * y + R[0][2] * z, ry = R[1][0] * x + R[1][1] * y + R[1][2] * z, rz = R[2][0] * x + R[2][1] * y + R[2][2] * z;
+      out[3 * i] = (1 - wi) * x + wi * rx; out[3 * i + 1] = (1 - wi) * y + wi * ry; out[3 * i + 2] = (1 - wi) * z + wi * rz;
+    }
+  }
+}
+function ringStats(pos, A) { // radius of the elbow ring (ring A) relative to rest, and the gap between rings A and B
+  let cx = 0, cy = 0, cz = 0; const n = A.nRad; const a0 = A.ringA * A.nr, b0 = A.ringB * A.nr;
+  for (let j = 0; j < n; j++) { cx += pos[3 * (a0 + j)]; cy += pos[3 * (a0 + j) + 1]; cz += pos[3 * (a0 + j) + 2]; }
+  cx /= n; cy /= n; cz /= n; let r = 0, gap = 0;
+  for (let j = 0; j < n; j++) { const i = a0 + j, k = b0 + j; r += Math.hypot(pos[3 * i] - cx, pos[3 * i + 1] - cy, pos[3 * i + 2] - cz); gap = Math.max(gap, Math.hypot(pos[3 * i] - pos[3 * k], pos[3 * i + 1] - pos[3 * k + 1], pos[3 * i + 2] - pos[3 * k + 2])); }
+  return { radius: r / n / ARM.r, gap: gap / ARM.r };
+}
+function boneLines(color) {
+  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(9), 3));
+  const l = new THREE.Line(g, new THREE.LineBasicMaterial({ color, depthTest: false, transparent: true, opacity: 0.9 })); l.renderOrder = 10;
+  const dots = new THREE.Group(); [0, 1, 2].forEach(() => { const m = new THREE.Mesh(new THREE.SphereGeometry(0.035, 14, 10), new THREE.MeshBasicMaterial({ color, depthTest: false })); m.renderOrder = 11; dots.add(m); });
+  const grp = new THREE.Group(); grp.add(l, dots);
+  grp.set = R => { const e = M3.mv(R, [ARM.half, 0, 0]); const p = [-ARM.half, 0, 0, 0, 0, 0, ...e]; g.attributes.position.array.set(p); g.attributes.position.needsUpdate = true; dots.children[0].position.set(-ARM.half, 0, 0); dots.children[1].position.set(0, 0, 0); dots.children[2].position.set(...e); };
+  return grp;
+}
+
+/* 3 — skinning artifacts */
+DEMOS.push({
+  id: 'skinning', title: 'Skinning artifacts', note: 'Rigid parts, LBS, DQS',
+  lead: 'Linear blend skinning moves every vertex with a weighted average of the bone transformations, t′ᵢ = Σₖ wₖ,ᵢ G′ₖ(θ, J) tᵢ. A weighted average of rotation matrices is not a rotation, so large joint rotations shrink the surface near the joint. Dual-quaternion skinning blends the rotations themselves instead.',
+  tryText: ['Switch between the three skinning modes at a strong bend, then ', 'twist the forearm by 180°', '. Watch the checkerboard and the cross-section readout at the elbow.'],
+  mount(stage, panel) {
+    const V = viewer(stage, { cam: [0.35, -3.3, 1.05], target: [0, 0, 0.3] });
+    const C = { acc: tok('--accent'), slate: tok('--slate'), ink: tok('--ink'), surf: tok('--surface'), bg: tok('--canvas') };
+    const A = armMesh(); const pos = A.g.attributes.position.array, col = A.g.attributes.color.array;
+    const tex = checkerTexture(26, 12, mixHex(C.surf, C.bg, 0.35), mixHex(C.surf, C.ink, 0.22));
+    const mat = new THREE.MeshStandardMaterial({ map: tex, roughness: 0.75, side: THREE.DoubleSide });
+    const mesh = new THREE.Mesh(A.g, mat); V.scene.add(mesh);
+    const bones = boneLines(C.ink); V.scene.add(bones);
+    const restVol = meshVolume(pos, A.g.index.array);
+    const S = { mode: 1, alpha: 110, tau: 0, width: 0.5, colorW: false, bones: true };
+    const w = new Float32Array(A.N);
+    const c0 = lin(C.slate), c1 = lin(C.acc), tmp = new THREE.Color();
+    function weights() { for (let i = 0; i < A.N; i++) w[i] = armWeight(A.rest[3 * i], S.width); }
+    function colors() { for (let i = 0; i < A.N; i++) { ramp(c0, c1, S.mode === 0 ? A.part[i] : w[i], tmp); col[3 * i] = tmp.r; col[3 * i + 1] = tmp.g; col[3 * i + 2] = tmp.b; } A.g.attributes.color.needsUpdate = true; }
+    function update() {
+      const rot = armRotation(rad(S.alpha), rad(S.tau));
+      poseArm(pos, A, S.mode, w, rot);
+      A.g.attributes.position.needsUpdate = true; A.g.computeVertexNormals(); fixNormals(A.g, S.mode === 0 ? A.seams : A.seams.concat(A.ab));
+      bones.set(rot.R); bones.visible = S.bones;
+      if (S.colorW) colors();
+      const st = ringStats(pos, A); const vol = meshVolume(pos, A.g.index.array) / restVol;
+      const names = ['Rigid parts', 'Linear blend skinning', 'Dual-quaternion skinning'];
+      const rows = [['mode', names[S.mode]], ['bend α, twist τ', `${S.alpha}°, ${S.tau}°`]];
+      if (S.mode === 0) rows.push(['gap at the elbow', `${fmt(st.gap * 100, 0)} % of the radius`]);
+      else rows.push(['elbow cross-section', `${fmt(st.radius * 100, 0)} % of rest radius`], ['volume', `${fmt(vol * 100, 1)} % of rest`]);
+      rd.set(rows);
+      let m;
+      if (S.mode === 0) m = 'Each vertex follows exactly one bone. A gap opens on the outside of the bend and the two parts interpenetrate on the inside.';
+      else if (S.mode === 1) m = Math.abs(S.tau) >= 90 ? `Candy-wrapper: averaging the two rotation matrices shrinks the elbow cross-section to ${fmt(st.radius * 100, 0)} % of its radius.` : Math.abs(S.alpha) >= 60 ? `Collapse: the blended matrices are not rotations, so the elbow loses volume (${fmt(vol * 100, 1)} % remains) and the inside folds in.` : 'For small rotations the blended matrix is nearly a rotation, so LBS looks fine.';
+      else m = Math.abs(S.alpha) >= 45 ? `Each cross-section is rotated rigidly by a blended rotation, so nothing collapses (cross-section ${fmt(st.radius * 100, 0)} %). Instead the outside of the joint bulges: volume ${fmt(vol * 100, 1)} % of rest.` : `Each cross-section is rotated rigidly by a blended rotation, so a twist keeps the elbow round (cross-section ${fmt(st.radius * 100, 0)} %, volume ${fmt(vol * 100, 1)} %).`;
+      msg.textContent = m;
+    }
+    const setMode = v => { S.mode = v; if (S.colorW) colors(); update(); };
+    seg(panel, { id: 'sk-mode', label: 'Skinning', options: [[0, 'Rigid parts'], [1, 'LBS'], [2, 'DQS']], value: S.mode, onChange: setMode });
+    const sa = slider(panel, { id: 'sk-bend', label: 'bend α (elbow)', min: -150, max: 150, step: 1, value: S.alpha, f: v => v + '°', onInput: v => { S.alpha = v; update(); } });
+    const st = slider(panel, { id: 'sk-twist', label: 'twist τ (forearm)', min: -180, max: 180, step: 1, value: S.tau, f: v => v + '°', onInput: v => { S.tau = v; update(); } });
+    slider(panel, { id: 'sk-width', label: 'blend region width', min: 0.04, max: 1.2, step: 0.01, value: S.width, f: v => fmt(v / ARM.r, 1) + ' × radius', onInput: v => { S.width = v; weights(); if (S.colorW) colors(); update(); } });
+    const r = h('div', { class: 'row' }); panel.append(r);
+    const preset = (a, t) => () => { S.alpha = a; S.tau = t; sa.set(a); st.set(t); update(); };
+    button(r, 'Bend 110°', preset(110, 0)); button(r, 'Twist 180°', preset(0, 180)); button(r, 'Both', preset(80, 120)); button(r, 'Rest', preset(0, 0));
+    check(panel, { id: 'sk-color', label: 'Colour by forearm weight w', checked: false, onChange: v => { S.colorW = v; mat.map = v ? null : tex; mat.vertexColors = v; mat.needsUpdate = true; if (v) colors(); update(); } });
+    check(panel, { id: 'sk-bones', label: 'Show bones (x-ray)', checked: true, onChange: v => { S.bones = v; update(); } });
+    const rd = readout(panel); const msg = verdict(panel);
+    note(panel, 'Two bones meet at the elbow. Weights ramp smoothly from the upper arm (slate) to the forearm (red) over the blend region; in rigid mode each vertex belongs to one bone. Both bones rotate about the elbow, so dual-quaternion blending reduces to blending unit quaternions.');
+    weights(); update();
+    return () => { tex.dispose(); V.dispose(); };
+  }
+});
+
+/* ───── ground-truth arm deformation for the pose blend shape demo ─────
+   The twist ramps up along the forearm (x ∈ [0, ℓ]). The bend maps the material x ∈ [−b, b] onto a
+   circular fillet whose straight continuations meet at the elbow, so outside [−b, b] both parts move
+   exactly like the two LBS bones. The fillet radius b·cot(α/2) keeps the inside from folding up to ≈115°. */
+const GT = { b: 0.35, ell: 0.6, maxBend: 2 * Math.atan(0.35 / ARM.r) };
+function gtArm(p, alpha, tau) {
+  let [x, y, z] = p;
+  if (x > 0) { const ph = tau * smoothstep(x / GT.ell), c = Math.cos(ph), s = Math.sin(ph); const yy = c * y - s * z, zz = s * y + c * z; y = yy; z = zz; }
+  const a = Math.abs(alpha); if (a < 1e-6) return [x, y, z];
+  const sg = alpha > 0 ? 1 : -1; z *= sg; // mirror so that the bend is always toward +z
+  const d = GT.b, rho = d / Math.tan(a / 2); let X, Z;
+  if (x <= -d) { X = x; Z = z; }
+  else if (x >= d) { X = x * Math.cos(a) - z * Math.sin(a); Z = x * Math.sin(a) + z * Math.cos(a); }
+  else { const ps = a * (x + d) / (2 * d); X = -d + (rho - z) * Math.sin(ps); Z = rho - (rho - z) * Math.cos(ps); }
+  return [X, y, Z * sg];
+}
+function cholesky(A, k) { const L = new Float64Array(k * k); for (let i = 0; i < k; i++) for (let j = 0; j <= i; j++) { let s = A[i * k + j]; for (let q = 0; q < j; q++) s -= L[i * k + q] * L[j * k + q]; L[i * k + j] = i === j ? Math.sqrt(Math.max(s, 1e-20)) : s / L[j * k + j]; } return L; }
+function cholSolve(L, k, b) { const y = new Float64Array(k); for (let i = 0; i < k; i++) { let s = b[i]; for (let q = 0; q < i; q++) s -= L[i * k + q] * y[q]; y[i] = s / L[i * k + i]; } for (let i = k - 1; i >= 0; i--) { let s = y[i]; for (let q = i + 1; q < k; q++) s -= L[q * k + i] * y[q]; y[i] = s / L[i * k + i]; } return y; }
+const featAxisAngle = R => logR(R);
+const featRotMat = R => [R[0][0] - 1, R[0][1], R[0][2], R[1][0], R[1][1] - 1, R[1][2], R[2][0], R[2][1], R[2][2] - 1];
+/* Learn P (m shapes) minimising Σ_poses Σ_i ‖M_i(θ)(t_i + Σ_j f_j(θ) P_ji) − v_i^GT(θ)‖², the error after skinning.
+   M_i is the blended LBS matrix; it depends only on the vertex weight, so the normal equations are shared per ring. */
+let PBS_CACHE = null;
+function trainPoseBlendShapes(A, w) {
+  if (PBS_CACHE) return PBS_CACHE;
+  const poses = []; for (let a = -110; a <= 110; a += 10) for (let t = -150; t <= 150; t += 25) poses.push([rad(a), rad(t)]);
+  const N = A.N, nR = A.nRings; const ringW = new Float64Array(nR); for (let i = 0; i < N; i++) ringW[A.ring[i]] = w[i];
+  const models = [{ feat: featAxisAngle, m: 3 }, { feat: featRotMat, m: 9 }];
+  models.forEach(M => { M.k = 3 * M.m; M.AA = new Float64Array(nR * M.k * M.k); M.bb = new Float64Array(N * M.k); });
+  const Mr = new Float64Array(nR * 9), MtM = new Float64Array(nR * 9);
+  for (const [al, ta] of poses) {
+    const { R } = armRotation(al, ta); const fs = models.map(M => M.feat(R));
+    for (let q = 0; q < nR; q++) {
+      const wq = ringW[q]; for (let r = 0; r < 3; r++) for (let c = 0; c < 3; c++) Mr[9 * q + 3 * r + c] = (1 - wq) * (r === c ? 1 : 0) + wq * R[r][c];
+      for (let c1 = 0; c1 < 3; c1++) for (let c2 = 0; c2 < 3; c2++) { let s = 0; for (let r = 0; r < 3; r++) s += Mr[9 * q + 3 * r + c1] * Mr[9 * q + 3 * r + c2]; MtM[9 * q + 3 * c1 + c2] = s; }
+      models.forEach((M, mi) => { const f = fs[mi], k = M.k, o = q * k * k; for (let m1 = 0; m1 < M.m; m1++) for (let m2 = 0; m2 < M.m; m2++) { const ff = f[m1] * f[m2]; if (!ff) continue; for (let c1 = 0; c1 < 3; c1++) for (let c2 = 0; c2 < 3; c2++) M.AA[o + (3 * m1 + c1) * k + 3 * m2 + c2] += ff * MtM[9 * q + 3 * c1 + c2]; } });
+    }
+    for (let i = 0; i < N; i++) {
+      const t = [A.rest[3 * i], A.rest[3 * i + 1], A.rest[3 * i + 2]], g = gtArm(t, al, ta), q = A.ring[i], m = Mr.subarray(9 * q, 9 * q + 9);
+      const r0 = g[0] - (m[0] * t[0] + m[1] * t[1] + m[2] * t[2]), r1 = g[1] - (m[3] * t[0] + m[4] * t[1] + m[5] * t[2]), r2 = g[2] - (m[6] * t[0] + m[7] * t[1] + m[8] * t[2]);
+      const v0 = m[0] * r0 + m[3] * r1 + m[6] * r2, v1 = m[1] * r0 + m[4] * r1 + m[7] * r2, v2 = m[2] * r0 + m[5] * r1 + m[8] * r2;
+      models.forEach((M, mi) => { const f = fs[mi], o = i * M.k; for (let mm = 0; mm < M.m; mm++) { const fm = f[mm]; if (!fm) continue; M.bb[o + 3 * mm] += fm * v0; M.bb[o + 3 * mm + 1] += fm * v1; M.bb[o + 3 * mm + 2] += fm * v2; } });
+    }
+  }
+  models.forEach(M => {
+    const k = M.k, n3 = 3 * N; M.P = new Float64Array(M.m * n3); const Ls = [];
+    for (let q = 0; q < nR; q++) { const S = M.AA.slice(q * k * k, (q + 1) * k * k); let tr = 0; for (let i = 0; i < k; i++) tr += S[i * k + i]; for (let i = 0; i < k; i++) S[i * k + i] += 1e-6 * tr / k + 1e-12; Ls.push(cholesky(S, k)); }
+    for (let i = 0; i < N; i++) { const u = cholSolve(Ls[A.ring[i]], k, M.bb.subarray(i * k, (i + 1) * k)); for (let mm = 0; mm < M.m; mm++) for (let c = 0; c < 3; c++) M.P[mm * n3 + 3 * i + c] = u[3 * mm + c]; }
+    delete M.AA; delete M.bb;
+  });
+  PBS_CACHE = { poses, a: models[0], b: models[1] };
+  return PBS_CACHE;
+}
+function blendShape(model, R, out) { const f = model.feat(R), n3 = out.length; out.fill(0); for (let i = 0; i < model.m; i++) { const fi = f[i]; if (fi === 0) continue; const o = i * n3; for (let k = 0; k < n3; k++) out[k] += fi * model.P[o + k]; } return out; }
+
+/* 4 — pose blend shapes */
+DEMOS.push({
+  id: 'pose-blend-shapes', title: 'Pose blend shapes', note: 'Learn B_P(θ) = Σ fᵢ(θ) Pᵢ from data',
+  lead: 'A pose blend shape is a set of vertex displacements added in the rest pose, before skinning: W(T + B_P(θ), J, 𝒲, θ) with B_P(θ) = Σᵢ fᵢ(θ) Pᵢ. Here the shapes Pᵢ are learned by least squares from 299 training poses of an ideal arm (a smooth bend and a gradual forearm twist), once with the features f(θ) = θ (axis-angle) and once with f(θ) = vec(R(θ) − I).',
+  tryText: ['Twist the forearm to +100° and then to −100°. ', 'Only the rotation-matrix features remove the candy-wrapper collapse in both directions', ': this is the neck-rotation argument from the lecture. Then compare the two feature choices on a pure bend.'],
+  mount(stage, panel) {
+    stage.classList.add('stack');
+    const top = h('div'), bottom = h('div'); stage.append(top, bottom);
+    const C = { acc: tok('--accent'), gold: tok('--gold'), slate: tok('--slate'), ink: tok('--ink'), muted: tok('--muted'), surf: tok('--surface'), bg: tok('--canvas'), grid: tok('--grid'), line: tok('--line') };
+    const MV = multiViewer(top, { cam: [0.3, -4.1, 1.15], target: [0.05, 0, 0.42], contentAspect: 1.55, fov: 30 });
+    const tex = checkerTexture(26, 12, mixHex(C.surf, C.bg, 0.35), mixHex(C.surf, C.ink, 0.22));
+    const arms = [0, 1, 2, 3].map(() => armMesh({ nRad: 48 }));
+    const A = arms[0]; const w = new Float32Array(A.N); for (let i = 0; i < A.N; i++) w[i] = armWeight(A.rest[3 * i], 0.5);
+    const mats = arms.map((a, k) => new THREE.MeshStandardMaterial({ map: k === 3 ? tex : null, vertexColors: k !== 3, roughness: 0.75, side: THREE.DoubleSide }));
+    const groups = arms.map((a, k) => { const g = new THREE.Group(); g.add(new THREE.Mesh(a.g, mats[k])); return g; });
+    MV.setCells([[groups[0], 'LBS only'], [groups[1], 'LBS + B_P(θ), f(θ) = θ'], [groups[2], 'LBS + B_P(θ), f(θ) = vec(R − I)'], [groups[3], 'ground truth']]);
+    const S = { alpha: 20, tau: 100, sweep: 'tau', colorErr: true };
+    const model = trainPoseBlendShapes(A, w);
+    const BP = new Float64Array(3 * A.N), gt = new Float64Array(3 * A.N), tmpPos = new Float64Array(3 * A.N);
+    const errRamp = [lin(C.surf), lin(C.acc)], tc = new THREE.Color(); const MAXE = 0.3; // colour saturates at 30 % of the radius
+    function predict(out, alpha, tau, mdl) { const rot = armRotation(alpha, tau); if (mdl) blendShape(mdl, rot.R, BP); poseArm(out, A, 1, w, rot, mdl ? BP : null); }
+    function groundTruth(out, alpha, tau) { for (let i = 0; i < A.N; i++) { const g = gtArm([A.rest[3 * i], A.rest[3 * i + 1], A.rest[3 * i + 2]], alpha, tau); out[3 * i] = g[0]; out[3 * i + 1] = g[1]; out[3 * i + 2] = g[2]; } }
+    function meanErr(P, G) { let e = 0; for (let i = 0; i < A.N; i++) e += Math.hypot(P[3 * i] - G[3 * i], P[3 * i + 1] - G[3 * i + 1], P[3 * i + 2] - G[3 * i + 2]); return e / A.N / ARM.r; }
+    function paint(a, P, G) { const col = a.g.attributes.color.array; for (let i = 0; i < A.N; i++) { const e = Math.hypot(P[3 * i] - G[3 * i], P[3 * i + 1] - G[3 * i + 1], P[3 * i + 2] - G[3 * i + 2]) / ARM.r; ramp(errRamp[0], errRamp[1], S.colorErr ? clamp(e / MAXE, 0, 1) : 0, tc); col[3 * i] = tc.r; col[3 * i + 1] = tc.g; col[3 * i + 2] = tc.b; } a.g.attributes.color.needsUpdate = true; }
+    function setGeom(a, P) { a.g.attributes.position.array.set(P); a.g.attributes.position.needsUpdate = true; a.g.computeVertexNormals(); fixNormals(a.g, a.seams.concat(a.ab)); }
+    const errs = {};
+    function update() {
+      const al = rad(S.alpha), ta = rad(S.tau);
+      groundTruth(gt, al, ta);
+      [[null, 'lbs', 0], [model.a, 'a', 1], [model.b, 'b', 2]].forEach(([m, key, k]) => { predict(tmpPos, al, ta, m); errs[key] = meanErr(tmpPos, gt); paint(arms[k], tmpPos, gt); setGeom(arms[k], tmpPos); });
+      setGeom(arms[3], gt);
+      const Rm = armRotation(al, ta).R;
+      rd.set([
+        ['test pose θ', `bend ${S.alpha}°, twist ${S.tau}°`],
+        ['f(θ) = θ (axis-angle)', vstr(logR(Rm))],
+        ['R(θ) − I, the 9 features', M3.str(Rm.map((r, i) => r.map((x, j) => x - (i === j ? 1 : 0))))],
+        ['mean error, LBS only', `${fmt(errs.lbs * 100, 1)} % of the radius`],
+        ['with B_P, f(θ) = θ', `${fmt(errs.a * 100, 1)} %`],
+        ['with B_P, f(θ) = vec(R − I)', `${fmt(errs.b * 100, 1)} %`]
+      ]);
+      const pc = x => fmt(x * 100, 1) + ' %';
+      if (Math.abs(S.tau) >= 40) msg.textContent = `Twisting needs the same outward correction around the whole forearm for +τ and for −τ. Axis-angle features change sign with τ, so the fit cannot express that part (${pc(errs.a)}); vec(R − I) contains cos τ − 1 and can (${pc(errs.b)}).`;
+      else if (Math.abs(S.alpha) >= 40) msg.textContent = `Bending needs different corrections on the inner and the outer side of the elbow, so even features that change sign with α capture much of it (${pc(errs.a)}). The rotation-matrix features give ${pc(errs.b)}.`;
+      else msg.textContent = 'Close to the rest pose LBS is already accurate and both corrections stay small.';
+      chart.redraw();
+    }
+    /* error-vs-angle chart for the three methods */
+    let curve = null, curveKey = '';
+    function computeCurve() {
+      const key = S.sweep + (S.sweep === 'tau' ? S.alpha : S.tau); if (key === curveKey) return curve; curveKey = key;
+      const lim = S.sweep === 'tau' ? 160 : 115; const xs = []; for (let v = -lim; v <= lim + 1e-9; v += 5) xs.push(v);
+      const G = new Float64Array(3 * A.N), P = new Float64Array(3 * A.N); const out = { xs, lim, lbs: [], a: [], b: [] };
+      xs.forEach(v => { const al = rad(S.sweep === 'tau' ? S.alpha : v), ta = rad(S.sweep === 'tau' ? v : S.tau); groundTruth(G, al, ta); predict(P, al, ta, null); out.lbs.push(meanErr(P, G)); predict(P, al, ta, model.a); out.a.push(meanErr(P, G)); predict(P, al, ta, model.b); out.b.push(meanErr(P, G)); });
+      curve = out; return out;
+    }
+    const chart = canvas2d(bottom, cv => {
+      const { ctx, S: D } = cv; const cu = computeCurve(); const W = D.W, H = D.H; const L = 46, Rm = 14, T = 26, Bm = 30, lim = cu.lim;
+      const ymax = Math.max(0.05, ...cu.lbs, ...cu.a, ...cu.b) * 1.08; const sx = v => L + (v + lim) / (2 * lim) * (W - L - Rm), sy = e => H - Bm - e / ymax * (H - T - Bm);
+      const tr = S.sweep === 'tau' ? 150 : 110;
+      ctx.fillStyle = C.grid; ctx.fillRect(sx(-tr), T, sx(tr) - sx(-tr), H - T - Bm);
+      ctx.strokeStyle = C.line; ctx.lineWidth = 1; ctx.font = `12px ${tok('--font-body')}`; ctx.fillStyle = C.muted; ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+      const step = ymax > 0.6 ? 0.2 : ymax > 0.3 ? 0.1 : 0.05;
+      for (let e = 0; e <= ymax + 1e-9; e += step) { ctx.beginPath(); ctx.moveTo(L, sy(e)); ctx.lineTo(W - Rm, sy(e)); ctx.stroke(); ctx.fillText(fmt(e * 100, 0) + '%', L - 6, sy(e)); }
+      ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+      for (let v = -150; v <= 150; v += 50) if (Math.abs(v) <= lim) ctx.fillText(v + '°', sx(v), H - Bm + 6);
+      ctx.textAlign = 'left'; ctx.textBaseline = 'top'; ctx.fillText(S.sweep === 'tau' ? `Mean error vs. twist τ (bend ${S.alpha}°)` : `Mean error vs. bend α (twist ${S.tau}°)`, L, 6);
+      const line = (ys, c, wdt, dash = []) => { ctx.strokeStyle = c; ctx.lineWidth = wdt; ctx.setLineDash(dash); ctx.beginPath(); cu.xs.forEach((v, i) => { const X = sx(v), Y = sy(ys[i]); i ? ctx.lineTo(X, Y) : ctx.moveTo(X, Y); }); ctx.stroke(); ctx.setLineDash([]); };
+      line(cu.lbs, C.muted, 2, [5, 4]); line(cu.a, C.gold, 2.2); line(cu.b, C.acc, 2.6);
+      const cur = S.sweep === 'tau' ? S.tau : S.alpha; ctx.strokeStyle = C.ink; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(sx(cur), T); ctx.lineTo(sx(cur), H - Bm); ctx.stroke();
+    });
+    groupTitle(panel, 'Test pose θ');
+    const maxB = Math.floor(deg(GT.maxBend));
+    const sa = slider(panel, { id: 'pb-bend', label: 'bend α', min: -maxB, max: maxB, step: 1, value: S.alpha, f: v => v + '°', onInput: v => { S.alpha = v; update(); } });
+    const st = slider(panel, { id: 'pb-twist', label: 'twist τ', min: -160, max: 160, step: 1, value: S.tau, f: v => v + '°', onInput: v => { S.tau = v; update(); } });
+    const r = h('div', { class: 'row' }); panel.append(r);
+    const preset = (a, t) => () => { S.alpha = a; S.tau = t; sa.set(a); st.set(t); update(); };
+    button(r, 'Twist +100°', preset(0, 100)); button(r, 'Twist −100°', preset(0, -100)); button(r, 'Bend 90°', preset(90, 0)); button(r, 'Bend −90°', preset(-90, 0));
+    seg(panel, { id: 'pb-sweep', label: 'The chart sweeps', options: [['tau', 'twist τ'], ['alpha', 'bend α']], value: S.sweep, onChange: v => { S.sweep = v; update(); } });
+    legend(panel, [[C.muted, 'LBS only'], [C.gold, 'B_P with f(θ) = θ'], [C.acc, 'B_P with f(θ) = vec(R − I)'], [C.grid, 'shaded: training range']]);
+    check(panel, { id: 'pb-color', label: 'Colour by error to the ground truth', checked: true, onChange: v => { S.colorErr = v; update(); } });
+    const rd = readout(panel); const msg = verdict(panel);
+    note(panel, `Training: ${model.poses.length} poses, bend −110°…110° and twist −150°…150°. The shapes Pᵢ minimise the vertex error after skinning; the LBS weights ramp over 2.3 radii around the elbow.`);
+    const probe = () => { const out = {}; [[30, 0], [60, 0], [90, 0], [0, 100], [0, -100], [-60, 60], [90, -120]].forEach(([a, t]) => { const al = rad(a), ta = rad(t); groundTruth(gt, al, ta); const e = []; [null, model.a, model.b].forEach(m => { predict(tmpPos, al, ta, m); e.push(meanErr(tmpPos, gt)); }); out[a + '/' + t] = e.map(x => +(x * 100).toFixed(1)); }); return out; };
+    window.__lab = Object.assign(window.__lab || {}, { pbs: probe });
+    update();
+    return () => { chart.dispose(); tex.dispose(); MV.dispose(); };
+  }
+});
+
+/* ───────────── toy body model (procedural, not SMPL data) ───────────── */
+const JNAMES = ['pelvis', 'spine', 'neck', 'head', 'L shoulder', 'L elbow', 'L wrist', 'R shoulder', 'R elbow', 'R wrist', 'L hip', 'L knee', 'L ankle', 'R hip', 'R knee', 'R ankle'];
+const PARENT = [-1, 0, 1, 2, 1, 4, 5, 1, 7, 8, 0, 10, 11, 0, 13, 14];
+const J_DESIGN = [[0, 0, 0.94], [0, 0, 1.18], [0, 0, 1.43], [0, 0, 1.56], [0.17, 0, 1.39], [0.46, 0, 1.39], [0.705, 0, 1.39], [-0.17, 0, 1.39], [-0.46, 0, 1.39], [-0.705, 0, 1.39], [0.095, 0, 0.88], [0.1, 0, 0.5], [0.1, 0, 0.09], [-0.095, 0, 0.88], [-0.1, 0, 0.5], [-0.1, 0, 0.09]];
+const J_RADIUS = [0.16, 0.17, 0.08, 0.1, 0.09, 0.065, 0.055, 0.09, 0.065, 0.055, 0.1, 0.075, 0.07, 0.1, 0.075, 0.07];
+function bodyParts() {
+  const P = [ // bone, a, b, r0, r1, y-scale
+    [0, [0, 0, 0.86], [0, 0, 1.02], 0.135, 0.13, 0.72],
+    [1, [0, 0, 1.06], [0, 0, 1.3], 0.13, 0.15, 0.66],
+    [1, [-0.15, 0, 1.37], [0.15, 0, 1.37], 0.07, 0.07, 0.75],
+    [2, [0, 0, 1.4], [0, 0, 1.53], 0.05, 0.048, 1],
+    [3, [0, -0.01, 1.585], [0, -0.005, 1.665], 0.085, 0.08, 1.05]
+  ];
+  for (const s of [1, -1]) {
+    const o = s > 0 ? 0 : 3, l = s > 0 ? 0 : 3;
+    P.push([4 + o, [0.18 * s, 0, 1.39], [0.46 * s, 0, 1.39], 0.052, 0.044, 1]);
+    P.push([5 + o, [0.46 * s, 0, 1.39], [0.7 * s, 0, 1.39], 0.042, 0.033, 1]);
+    P.push([6 + o, [0.715 * s, 0, 1.39], [0.82 * s, 0, 1.38], 0.034, 0.03, 0.6]);
+    P.push([10 + l, [0.095 * s, 0, 0.9], [0.1 * s, 0, 0.5], 0.078, 0.055, 1]);
+    P.push([11 + l, [0.1 * s, 0, 0.5], [0.1 * s, 0, 0.1], 0.052, 0.038, 1]);
+    P.push([12 + l, [0.1 * s, 0.005, 0.06], [0.1 * s, -0.15, 0.045], 0.042, 0.036, 1]);
+  }
+  return P.map(([bone, a, b, r0, r1, sy]) => ({ bone, a, b, r0, r1, sy, ab: [b[0] - a[0], b[1] - a[1], b[2] - a[2]], L2: (b[0] - a[0]) ** 2 + (b[1] - a[1]) ** 2 + (b[2] - a[2]) ** 2 }));
+}
+function partSDF(p, x, y, z, out) { // tapered capsule with an elliptical cross-section (approximate distance)
+  const sy = p.sy; const qx = x - p.a[0], qy = (y - p.a[1]) / sy, qz = z - p.a[2]; const bx = p.ab[0], by = p.ab[1] / sy, bz = p.ab[2];
+  const t = clamp((qx * bx + qy * by + qz * bz) / (bx * bx + by * by + bz * bz), 0, 1);
+  const dx = qx - t * bx, dy = qy - t * by, dz = qz - t * bz; if (out) out.t = t;
+  return Math.sqrt(dx * dx + dy * dy + dz * dz) - (p.r0 + (p.r1 - p.r0) * t);
+}
+function smin(a, b, k) { const hh = Math.max(k - Math.abs(a - b), 0) / k; return Math.min(a, b) - hh * hh * k * 0.25; }
+function surfaceNets(f, x0, y0, z0, nx, ny, nz, hs) {
+  const F = new Float32Array(nx * ny * nz); let n = 0;
+  for (let k = 0; k < nz; k++) { const z = z0 + k * hs; for (let j = 0; j < ny; j++) { const y = y0 + j * hs; for (let i = 0; i < nx; i++, n++) F[n] = f(x0 + i * hs, y, z); } }
+  const id = (i, j, k) => i + nx * (j + ny * k); const cx = nx - 1, cy = ny - 1, cz = nz - 1;
+  const cell = new Int32Array(cx * cy * cz).fill(-1); const cid = (i, j, k) => i + cx * (j + cy * k);
+  const corners = [[0, 0, 0], [1, 0, 0], [0, 1, 0], [1, 1, 0], [0, 0, 1], [1, 0, 1], [0, 1, 1], [1, 1, 1]];
+  const edges = []; for (let a = 0; a < 8; a++) for (const bit of [1, 2, 4]) if (!(a & bit)) edges.push([a, a | bit]);
+  const P = []; const v = new Float32Array(8);
+  for (let k = 0; k < cz; k++) for (let j = 0; j < cy; j++) for (let i = 0; i < cx; i++) {
+    let mask = 0; for (let c = 0; c < 8; c++) { v[c] = F[id(i + (c & 1), j + ((c >> 1) & 1), k + ((c >> 2) & 1))]; if (v[c] < 0) mask |= 1 << c; }
+    if (mask === 0 || mask === 255) continue;
+    let sx = 0, sy = 0, sz = 0, cnt = 0;
+    for (const [a, b] of edges) { if ((v[a] < 0) !== (v[b] < 0)) { const t = v[a] / (v[a] - v[b]); const A = corners[a], Bc = corners[b]; sx += A[0] + t * (Bc[0] - A[0]); sy += A[1] + t * (Bc[1] - A[1]); sz += A[2] + t * (Bc[2] - A[2]); cnt++; } }
+    cell[cid(i, j, k)] = P.length / 3; P.push(x0 + (i + sx / cnt) * hs, y0 + (j + sy / cnt) * hs, z0 + (k + sz / cnt) * hs);
+  }
+  const T = []; const quad = (a, b, c, d, flip) => { if (a < 0 || b < 0 || c < 0 || d < 0) return; if (flip) { const t = b; b = d; d = t; } T.push(a, b, c, a, c, d); };
+  for (let k = 1; k < cz; k++) for (let j = 1; j < cy; j++) for (let i = 0; i < cx; i++) { const p0 = F[id(i, j, k)], p1 = F[id(i + 1, j, k)]; if ((p0 < 0) !== (p1 < 0)) quad(cell[cid(i, j - 1, k - 1)], cell[cid(i, j, k - 1)], cell[cid(i, j, k)], cell[cid(i, j - 1, k)], !(p0 < 0)); }
+  for (let k = 1; k < cz; k++) for (let j = 0; j < cy; j++) for (let i = 1; i < cx; i++) { const p0 = F[id(i, j, k)], p1 = F[id(i, j + 1, k)]; if ((p0 < 0) !== (p1 < 0)) quad(cell[cid(i - 1, j, k - 1)], cell[cid(i - 1, j, k)], cell[cid(i, j, k)], cell[cid(i, j, k - 1)], !(p0 < 0)); }
+  for (let k = 0; k < cz; k++) for (let j = 1; j < cy; j++) for (let i = 1; i < cx; i++) { const p0 = F[id(i, j, k)], p1 = F[id(i, j, k + 1)]; if ((p0 < 0) !== (p1 < 0)) quad(cell[cid(i - 1, j - 1, k)], cell[cid(i, j - 1, k)], cell[cid(i, j, k)], cell[cid(i - 1, j, k)], !(p0 < 0)); }
+  const pos = new Float64Array(P), idx = new Uint32Array(T);
+  if (meshVolume(pos, idx) < 0) for (let t = 0; t < idx.length; t += 3) { const a = idx[t + 1]; idx[t + 1] = idx[t + 2]; idx[t + 2] = a; }
+  return { pos, idx };
+}
+function taubin(pos, idx, iters = 4, lam = 0.5, mu = -0.53) {
+  const N = pos.length / 3; const nb = Array.from({ length: N }, () => new Set());
+  for (let t = 0; t < idx.length; t += 3) { const a = idx[t], b = idx[t + 1], c = idx[t + 2]; nb[a].add(b).add(c); nb[b].add(a).add(c); nb[c].add(a).add(b); }
+  const off = new Int32Array(N + 1); nb.forEach((s, i) => off[i + 1] = off[i] + s.size); const adj = new Int32Array(off[N]); nb.forEach((s, i) => { let k = off[i]; s.forEach(j => adj[k++] = j); });
+  const tmp = new Float64Array(pos.length);
+  const step = f => { for (let i = 0; i < N; i++) { let sx = 0, sy = 0, sz = 0; const n = off[i + 1] - off[i]; for (let k = off[i]; k < off[i + 1]; k++) { const j = adj[k]; sx += pos[3 * j]; sy += pos[3 * j + 1]; sz += pos[3 * j + 2]; } tmp[3 * i] = pos[3 * i] + f * (sx / n - pos[3 * i]); tmp[3 * i + 1] = pos[3 * i + 1] + f * (sy / n - pos[3 * i + 1]); tmp[3 * i + 2] = pos[3 * i + 2] + f * (sz / n - pos[3 * i + 2]); } pos.set(tmp); };
+  for (let it = 0; it < iters; it++) { step(lam); step(mu); }
+}
+function jacobiEig(Ain, n) { // symmetric n×n → { vals, vecs (columns) }
+  const A = Float64Array.from(Ain), V = new Float64Array(n * n); for (let i = 0; i < n; i++) V[i * n + i] = 1;
+  for (let sweep = 0; sweep < 80; sweep++) {
+    let off = 0; for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) off += A[i * n + j] ** 2; if (off < 1e-22) break;
+    for (let p = 0; p < n; p++) for (let q = p + 1; q < n; q++) {
+      const apq = A[p * n + q]; if (Math.abs(apq) < 1e-30) continue;
+      const th = (A[q * n + q] - A[p * n + p]) / (2 * apq), t = (th >= 0 ? 1 : -1) / (Math.abs(th) + Math.sqrt(th * th + 1)), c = 1 / Math.sqrt(t * t + 1), s = t * c;
+      for (let k = 0; k < n; k++) { const x = A[k * n + p], y = A[k * n + q]; A[k * n + p] = c * x - s * y; A[k * n + q] = s * x + c * y; }
+      for (let k = 0; k < n; k++) { const x = A[p * n + k], y = A[q * n + k]; A[p * n + k] = c * x - s * y; A[q * n + k] = s * x + c * y; }
+      for (let k = 0; k < n; k++) { const x = V[k * n + p], y = V[k * n + q]; V[k * n + p] = c * x - s * y; V[k * n + q] = s * x + c * y; }
+    }
+  }
+  const order = Array.from({ length: n }, (_, i) => i).sort((a, b) => A[b * n + b] - A[a * n + a]);
+  return { vals: order.map(i => A[i * n + i]), vecs: order.map(i => Array.from({ length: n }, (_, k) => V[k * n + i])) };
+}
+let BODY = null;
+function getBody() {
+  if (BODY) return BODY;
+  const parts = bodyParts();
+  const sdf = (x, y, z) => { let d = 1e9; for (const p of parts) d = smin(d, partSDF(p, x, y, z), 0.022); return d; };
+  const hs = 0.012, x0 = -0.9, y0 = -0.24, z0 = -0.04; const nx = Math.ceil(1.8 / hs) + 1, ny = Math.ceil(0.42 / hs) + 1, nz = Math.ceil(1.84 / hs) + 1;
+  const { pos, idx } = surfaceNets(sdf, x0, y0, z0, nx, ny, nz, hs);
+  taubin(pos, idx, 5);
+  const N = pos.length / 3, K = 16;
+  /* blend weights 𝒲 from the distance to each body part's surface; top 4, normalised */
+  const Wi = new Int32Array(4 * N), Ww = new Float32Array(4 * N); const o = {};
+  const axisPt = new Float64Array(3 * N); // weighted closest point on the bone axes (used for girth changes)
+  const side = b => (b >= 4 && b <= 6) || (b >= 10 && b <= 12) ? 1 : (b >= 7 && b <= 9) || b >= 13 ? -1 : 0;
+  for (let i = 0; i < N; i++) {
+    const x = pos[3 * i], y = pos[3 * i + 1], z = pos[3 * i + 2];
+    // part-level weights (smooth across parts of the same bone), then summed per bone
+    const raw = [];
+    parts.forEach((p, pi) => { if (side(p.bone) * x < -0.025) return; const d = partSDF(p, x, y, z, o); raw.push([pi, 1 / Math.pow(Math.max(d, 0) + 0.012, 3), o.t]); });
+    raw.sort((a, b) => b[1] - a[1]); const top = raw.slice(0, 4); const s = top.reduce((a, b) => a + b[1], 0);
+    let ax = 0, ay = 0, az = 0; const bw = new Map();
+    top.forEach(([pi, r, t]) => { const wq = r / s, p = parts[pi]; if (p.bone <= 3) { az += wq * z; } else { ax += wq * (p.a[0] + t * p.ab[0]); ay += wq * (p.a[1] + t * p.ab[1]); az += wq * (p.a[2] + t * p.ab[2]); } bw.set(p.bone, (bw.get(p.bone) || 0) + wq); }); // torso, neck and head scale about the vertical body axis
+    [...bw.entries()].slice(0, 4).forEach(([k, wq], q) => { Wi[4 * i + q] = k; Ww[4 * i + q] = wq; });
+    axisPt[3 * i] = ax; axisPt[3 * i + 1] = ay; axisPt[3 * i + 2] = az;
+  }
+  /* joint regressor 𝒥: each joint is the average of the template vertices within a radius of it */
+  const Jreg = J_DESIGN.map((j, k) => { const rows = []; for (let i = 0; i < N; i++) { const d = Math.hypot(pos[3 * i] - j[0], pos[3 * i + 1] - j[1], pos[3 * i + 2] - j[2]); if (d < J_RADIUS[k]) rows.push([i, Math.exp(-0.5 * (d / (0.6 * J_RADIUS[k])) ** 2)]); } const s = rows.reduce((a, b) => a + b[1], 0); return rows.map(([i, w]) => [i, w / s]); });
+  const regress = V => Jreg.map((rows, k) => { if (!rows.length) return J_DESIGN[k].slice(); let x = 0, y = 0, z = 0; for (const [i, w] of rows) { x += w * V[3 * i]; y += w * V[3 * i + 1]; z += w * V[3 * i + 2]; } return [x, y, z]; });
+  /* region weights for the synthetic shape variations */
+  const region = (i, set) => { let s = 0; for (let q = 0; q < 4; q++) if (set.includes(Wi[4 * i + q])) s += Ww[4 * i + q]; return s; };
+  const armW = new Float64Array(N), legW = new Float64Array(N), girthW = new Float64Array(N); const GAM = [1, 1, 0.5, 0.1, 0.9, 0.6, 0.2, 0.9, 0.6, 0.2, 1, 0.6, 0.1, 1, 0.6, 0.1];
+  for (let i = 0; i < N; i++) { armW[i] = region(i, [4, 5, 6, 7, 8, 9]); legW[i] = region(i, [10, 11, 12, 13, 14, 15]); let g = 0; for (let q = 0; q < 4; q++) g += Ww[4 * i + q] * GAM[Wi[4 * i + q]]; girthW[i] = g; }
+  function subject(prm, out) {
+    const { sh, g, b, sw, al, ll } = prm;
+    for (let i = 0; i < N; i++) {
+      let x = pos[3 * i], y = pos[3 * i + 1], z = pos[3 * i + 2];
+      const f = 1 + g * girthW[i]; x = axisPt[3 * i] + (x - axisPt[3 * i]) * f; y = axisPt[3 * i + 1] + (y - axisPt[3 * i + 1]) * f; z = axisPt[3 * i + 2] + (z - axisPt[3 * i + 2]) * f;
+      const tw = 1 - armW[i] - legW[i]; const bump = Math.exp(-(x * x) / (2 * 0.12 ** 2) - ((z - 1.07) ** 2) / (2 * 0.1 ** 2)) * clamp(-y / 0.08, 0, 1) * clamp(tw, 0, 1) * smoothstep((z - 0.86) / 0.12); y -= b * bump;
+      const sx = Math.sign(x); x += sx * sw * armW[i]; x += sx * Math.max(Math.abs(pos[3 * i]) - 0.17, 0) * (al - 1) * armW[i];
+      z -= legW[i] * Math.max(0.9 - z, 0) * (ll - 1); z += 0.88 * (ll - 1);
+      out[3 * i] = x * sh; out[3 * i + 1] = y * sh; out[3 * i + 2] = z * sh;
+    }
+    return out;
+  }
+  /* synthetic population: correlated, partly non-linear parameters */
+  const R = rng(20251), M = 60, n3 = 3 * N; const data = new Float32Array(M * n3), prms = [], tmp = new Float64Array(n3);
+  for (let s = 0; s < M; s++) {
+    const z = [0, 0, 0, 0, 0, 0].map(() => gauss(R));
+    const prm = { sh: 1 + 0.028 * z[0], g: Math.max(-0.45, 0.26 * z[1] + 0.04 * z[0]), b: 0.05 * Math.pow(Math.max(z[1], 0), 1.5) + 0.012 * z[2], sw: 0.025 * z[3] + 0.006 * z[0], al: 1 + 0.04 * z[4] + 0.015 * z[0], ll: 1 + 0.035 * z[5] + 0.02 * z[0] };
+    prms.push(prm); subject(prm, tmp); data.set(tmp, s * n3);
+  }
+  /* PCA through the M×M Gram matrix */
+  const mean = new Float64Array(n3); for (let s = 0; s < M; s++) for (let k = 0; k < n3; k++) mean[k] += data[s * n3 + k] / M;
+  for (let s = 0; s < M; s++) for (let k = 0; k < n3; k++) data[s * n3 + k] -= mean[k];
+  const G = new Float64Array(M * M);
+  for (let a = 0; a < M; a++) for (let b = a; b < M; b++) { let sum = 0; const oa = a * n3, ob = b * n3; for (let k = 0; k < n3; k++) sum += data[oa + k] * data[ob + k]; G[a * M + b] = G[b * M + a] = sum; }
+  const { vals, vecs } = jacobiEig(G, M); const total = vals.reduce((a, b) => a + Math.max(b, 0), 0);
+  const NC = 8, Sb = [], explained = [], coeff = Array.from({ length: M }, () => []);
+  for (let c = 0; c < NC; c++) {
+    const sig = Math.sqrt(Math.max(vals[c], 1e-30)), std = sig / Math.sqrt(M - 1); const v = new Float64Array(n3);
+    for (let s = 0; s < M; s++) { const u = vecs[c][s] / sig; if (!u) continue; const o2 = s * n3; for (let k = 0; k < n3; k++) v[k] += u * data[o2 + k]; }
+    for (let k = 0; k < n3; k++) v[k] *= std; // S_c scaled so that β_c has unit standard deviation
+    Sb.push(v); explained.push(vals[c] / total);
+    for (let s = 0; s < M; s++) coeff[s].push(vecs[c][s] * Math.sqrt(M - 1));
+  }
+  const T = Float64Array.from(mean); // the template is the mean shape
+  BODY = { N, K, T, idx, Wi, Ww, Jreg, regress, S: Sb, explained, coeff, data, M, n3, prms, posDesign: pos };
+  return BODY;
+}
+function shapeBody(B, beta, out) { out.set(B.T); beta.forEach((b, c) => { if (!b) return; const S = B.S[c]; for (let k = 0; k < out.length; k++) out[k] += b * S[k]; }); return out; }
+function bodyHeight(V) { let lo = 1e9, hi = -1e9; for (let i = 2; i < V.length; i += 3) { lo = Math.min(lo, V[i]); hi = Math.max(hi, V[i]); } return hi - lo; }
+function bodyGeometry(B) { const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(3 * B.N), 3)); g.setAttribute('color', new THREE.BufferAttribute(new Float32Array(3 * B.N).fill(1), 3)); g.setIndex(new THREE.BufferAttribute(B.idx, 1)); return g; }
+function setPositions(g, V) { g.attributes.position.array.set(V); g.attributes.position.needsUpdate = true; g.computeVertexNormals(); g.computeBoundingSphere(); }
+function skeletonObj(color, accent) {
+  const grp = new THREE.Group();
+  const lines = new THREE.LineSegments(new THREE.BufferGeometry(), new THREE.LineBasicMaterial({ color, depthTest: false, transparent: true, opacity: 0.85 })); lines.renderOrder = 10;
+  const dots = new THREE.InstancedMesh(new THREE.SphereGeometry(0.017, 12, 8), new THREE.MeshBasicMaterial({ color: accent, depthTest: false, transparent: true }), 16); dots.renderOrder = 11;
+  grp.add(lines, dots); const m = new THREE.Matrix4();
+  grp.set = J => { const p = []; for (let k = 1; k < 16; k++) p.push(...J[k], ...J[PARENT[k]]); lines.geometry.dispose(); lines.geometry = new THREE.BufferGeometry(); lines.geometry.setAttribute('position', new THREE.Float32BufferAttribute(p, 3)); J.forEach((j, k) => { m.makeTranslation(j[0], j[1], j[2]); dots.setMatrixAt(k, m); }); dots.instanceMatrix.needsUpdate = true; };
+  return grp;
+}
+function loadingNote(stage, text) { const d = h('div', { class: 'loading' }, text); stage.append(d); return d; }
+
+/* 5 — shape space */
+DEMOS.push({
+  id: 'shape-space', title: 'Shape space', note: 'PCA: T + B_S(β), J = 𝒥(T + B_S(β))',
+  lead: 'Sixty synthetic bodies in vertex correspondence differ in height, limb length, girth, belly and shoulder width. PCA turns them into a mean template T and shape blend shapes Sⱼ, so that a body is T + B_S(β) with B_S(β) = Σⱼ βⱼ Sⱼ. A fixed joint regressor 𝒥 predicts the joints from the vertices, J = 𝒥(T + B_S(β)).',
+  tryText: ['Move ', 'β₁ to ±3', ' and watch the body and its joints change together. Then project a training subject: four coefficients already reproduce it closely.'],
+  mount(stage, panel) {
+    const C = { acc: tok('--accent'), ink: tok('--ink'), muted: tok('--muted'), surf: tok('--surface'), slate: tok('--slate'), gold: tok('--gold') };
+    const wait = loadingNote(stage, 'Building the toy body model and its PCA…');
+    let alive = true, V = null; const S = { beta: [0, 0, 0, 0], joints: true, colorBS: false, subj: -1 };
+    const timer = setTimeout(() => {
+      if (!alive) return;
+      const B = getBody(); wait.remove();
+      V = viewer(stage, { cam: [1.9, -3.6, 1.45], target: [0, 0, 0.88], fov: 34 });
+      const g = bodyGeometry(B); const mat = new THREE.MeshStandardMaterial({ color: C.surf, roughness: 0.7, vertexColors: false });
+      V.scene.add(new THREE.Mesh(g, mat));
+      const ghostG = bodyGeometry(B); const ghost = new THREE.Mesh(ghostG, new THREE.MeshBasicMaterial({ color: C.slate, wireframe: true, transparent: true, opacity: 0.18 })); ghost.visible = false; V.scene.add(ghost);
+      const skel = skeletonObj(C.ink, C.acc); V.scene.add(skel);
+      const floor = new THREE.GridHelper(3, 12, tok('--line'), tok('--line')); floor.rotation.x = Math.PI / 2; V.scene.add(floor);
+      const Vb = new Float64Array(B.n3), BS = new Float64Array(B.n3);
+      const c0 = lin(C.surf), c1 = lin(C.acc), tc = new THREE.Color(); const col = g.attributes.color.array;
+      function update() {
+        shapeBody(B, S.beta, Vb); setPositions(g, Vb);
+        const J = B.regress(Vb); skel.set(J); skel.visible = S.joints;
+        if (S.colorBS) { let mx = 1e-9; const m = new Float64Array(B.N); for (let i = 0; i < B.N; i++) { m[i] = Math.hypot(Vb[3 * i] - B.T[3 * i], Vb[3 * i + 1] - B.T[3 * i + 1], Vb[3 * i + 2] - B.T[3 * i + 2]); mx = Math.max(mx, m[i]); } for (let i = 0; i < B.N; i++) { ramp(c0, c1, m[i] / Math.max(mx, 0.03), tc); col[3 * i] = tc.r; col[3 * i + 1] = tc.g; col[3 * i + 2] = tc.b; } g.attributes.color.needsUpdate = true; }
+        const rows = [['β', '(' + S.beta.map(b => fmt(b, 1)).join(', ') + ')'], ['height', `${fmt(bodyHeight(Vb) * 100, 1)} cm`], ['L knee joint', vstr(J[11], 3)], ['L shoulder joint', vstr(J[4], 3)]];
+        if (S.subj >= 0) { let e = 0; const o = S.subj * B.n3; for (let i = 0; i < B.N; i++) e += Math.hypot(Vb[3 * i] - (B.data[o + 3 * i] + B.T[3 * i]), Vb[3 * i + 1] - (B.data[o + 3 * i + 1] + B.T[3 * i + 1]), Vb[3 * i + 2] - (B.data[o + 3 * i + 2] + B.T[3 * i + 2])); rows.push([`subject ${S.subj + 1}: mean distance`, `${fmt(e / B.N * 1000, 1)} mm with 4 of 8 components`]); }
+        rd.set(rows); sls.forEach((s, c) => s.set(S.beta[c]));
+      }
+      groupTitle(panel, 'Shape coefficients β (in standard deviations)');
+      const sls = [0, 1, 2, 3].map(c => slider(panel, { id: 'ss-b' + c, label: `β${'₁₂₃₄'[c]}  ·  ${fmt(B.explained[c] * 100, 1)} % of variance`, min: -3, max: 3, step: 0.05, value: 0, f: v => fmt(v, 2), onInput: v => { S.beta[c] = v; S.subj = -1; ghost.visible = false; update(); } }));
+      const r = h('div', { class: 'row' }); panel.append(r);
+      const Rr = rng(77);
+      button(r, 'Mean shape T', () => { S.beta = [0, 0, 0, 0]; S.subj = -1; ghost.visible = false; update(); });
+      button(r, 'Random body', () => { S.beta = [0, 1, 2, 3].map(() => clamp(gauss(Rr), -2.5, 2.5)); S.subj = -1; ghost.visible = false; update(); });
+      button(r, 'Project a training subject', () => { S.subj = (S.subj + 1 + Math.floor(Rr() * 7)) % B.M; S.beta = B.coeff[S.subj].slice(0, 4).map(b => clamp(b, -3, 3)); const o = S.subj * B.n3; const gv = new Float64Array(B.n3); for (let k = 0; k < B.n3; k++) gv[k] = B.data[o + k] + B.T[k]; setPositions(ghostG, gv); ghost.visible = true; update(); }, true);
+      check(panel, { id: 'ss-joints', label: 'Show joints J = 𝒥(T + B_S(β))', checked: true, onChange: v => { S.joints = v; update(); } });
+      check(panel, { id: 'ss-color', label: 'Colour by ‖B_S(β)‖ per vertex', checked: false, onChange: v => { S.colorBS = v; mat.vertexColors = v; mat.needsUpdate = true; update(); } });
+      groupTitle(panel, 'Explained variance per component');
+      const host = h('div', { style: 'position:relative;height:130px' }); panel.append(host);
+      const bars = canvas2d(host, cv => {
+        const { ctx, S: D } = cv; const n = B.explained.length; const L = 34, T = 10, Bm = 22, W = D.W, H = D.H; const bw = (W - L - 8) / n;
+        ctx.fillStyle = C.muted; ctx.font = `11px ${tok('--font-body')}`; ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+        const mx = Math.ceil(B.explained[0] * 10) / 10; [0, mx / 2, mx].forEach(v => { const y = H - Bm - v / mx * (H - T - Bm); ctx.fillText(fmt(v * 100, 0) + '%', L - 5, y); ctx.strokeStyle = tok('--line'); ctx.beginPath(); ctx.moveTo(L, y); ctx.lineTo(W - 6, y); ctx.stroke(); });
+        ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+        B.explained.forEach((e, c) => { const x = L + c * bw + bw * 0.18, hh = e / mx * (H - T - Bm); ctx.fillStyle = c < 4 ? C.acc : C.surf; ctx.fillRect(x, H - Bm - hh, bw * 0.64, hh); ctx.fillStyle = C.muted; ctx.fillText(String(c + 1), x + bw * 0.32, H - Bm + 4); });
+      });
+      const rd = readout(panel);
+      note(panel, `${B.N.toLocaleString('en')} vertices, ${B.M} training bodies. Wireframe: the projected training subject. Shape blend shapes are scaled so that each βⱼ has unit standard deviation.`);
+      window.__lab = Object.assign(window.__lab || {}, { pca: { explained: B.explained.slice(), N: B.N } });
+      update(); cleanupExtra = () => bars.dispose();
+    }, 30);
+    let cleanupExtra = null;
+    return () => { alive = false; clearTimeout(timer); if (cleanupExtra) cleanupExtra(); if (V) V.dispose(); };
+  }
+});
+
+/* 6 — toy SMPL */
+const WCOLORS = ['#7b8b99', '#3e5566', '#8f7b3c', '#c9b37a', '#a51e37', '#d9822b', '#e3bd3f', '#a51e37', '#d9822b', '#e3bd3f', '#2f7a5a', '#5fae86', '#a6d4b9', '#2f7a5a', '#5fae86', '#a6d4b9'];
+DEMOS.push({
+  id: 'smpl', title: 'Toy SMPL', note: 'M(θ, β) = W(T_P(θ, β), J(β), 𝒲, θ)',
+  lead: 'SMPL composes the previous pieces. Shape blend shapes and pose blend shapes are added to the template, T_P(θ, β) = T + B_S(β) + B_P(θ); the joints are regressed from the shaped template, J(β) = 𝒥(T + B_S(β)); finally linear blend skinning poses the result. This toy version uses 16 joints and a handful of hand-designed pose blend shapes.',
+  tryText: ['Pose the body, then ', 'switch the pose blend shapes off and on', ' and look at the elbows, knees and neck. The third panel shows B_P(θ) in the rest pose.'],
+  mount(stage, panel) {
+    const C = { acc: tok('--accent'), ink: tok('--ink'), muted: tok('--muted'), surf: tok('--surface'), slate: tok('--slate'), gold: tok('--gold') };
+    const wait = loadingNote(stage, 'Building the toy body model…');
+    let alive = true, MV = null;
+    const S = { beta: [0, 0], sh: 50, el: 70, hip: 25, kn: 60, nk: 70, bp: true, skel: true, colorW: false, view: 'pipe' };
+    const timer = setTimeout(() => {
+      if (!alive) return;
+      const B = getBody(); wait.remove();
+      MV = multiViewer(stage, { cam: [1.1, -3.7, 1.2], target: [0, 0, 0.86], contentAspect: 0.95, fov: 30 });
+      const mk = () => { const g = bodyGeometry(B); const m = new THREE.MeshStandardMaterial({ color: C.surf, roughness: 0.7 }); const grp = new THREE.Group(); grp.add(new THREE.Mesh(g, m)); return { g, m, grp }; };
+      const P = [mk(), mk(), mk(), mk()];
+      const sk = [null, skeletonObj(C.ink, C.acc), skeletonObj(C.ink, C.acc), skeletonObj(C.ink, C.acc)]; sk.forEach((s, k) => s && P[k].grp.add(s));
+      P.forEach(p => { const f = new THREE.GridHelper(2.4, 8, tok('--line'), tok('--line')); f.rotation.x = Math.PI / 2; p.grp.add(f); });
+      P[2].m.vertexColors = true;
+      const labels = ['T (template)', 'T + B_S(β)', 'T + B_S(β) + B_P(θ)', 'M(θ, β) = W(T_P(θ, β), J(β), 𝒲, θ)'];
+      const setView = () => MV.setCells(S.view === 'pipe' ? P.map((p, k) => [p.grp, labels[k]]) : [[P[3].grp, labels[3]]]);
+      setView();
+      /* hand-designed pose blend shapes, each driven by one element of (R_k − I) */
+      const T = B.T, N = B.N; const J0 = B.regress(T);
+      const fields = [];
+      const radialField = (k, axis, amp, sig, extra) => { const P1 = new Float64Array(3 * N); const j = J0[k]; for (let i = 0; i < N; i++) { const d = [T[3 * i] - j[0], T[3 * i + 1] - j[1], T[3 * i + 2] - j[2]]; const along = d[0] * axis[0] + d[1] * axis[1] + d[2] * axis[2]; const rv = [d[0] - along * axis[0], d[1] - along * axis[1], d[2] - along * axis[2]]; const rl = Math.hypot(...rv); const dl = Math.hypot(...d); if (rl < 1e-6 || dl > 4 * sig) continue; if (extra && !extra(i, d)) continue; const a = amp * Math.exp(-0.5 * (along / sig) ** 2) * Math.exp(-0.5 * Math.max(rl - 0.09, 0) ** 2 / 0.0016); for (let c = 0; c < 3; c++) P1[3 * i + c] = a * rv[c] / rl; } return P1; };
+      // (joint, element of R − I, sign, field)
+      fields.push([2, [0, 0], -1, radialField(2, [0, 0, 1], 0.02, 0.035, (i, d) => Math.abs(d[2]) < 0.1)]);   // neck twist about z: R₀₀ − 1 = cos n − 1
+      for (const [k, side] of [[5, 1], [8, -1]]) fields.push([k, [0, 0], -1, radialField(k, [side, 0, 0], 0.012, 0.035, (i, d) => side * d[0] > -0.12)]);  // elbows about z
+      for (const k of [11, 14]) fields.push([k, [1, 1], -1, radialField(k, [0, 0, 1], 0.012, 0.035)]);                                     // knees about x
+      for (const [k, side] of [[4, 1], [7, -1]]) { const F1 = new Float64Array(3 * N); const j = J0[k]; for (let i = 0; i < N; i++) { const dx = T[3 * i] - j[0], dz = T[3 * i + 2] - j[2]; if (side * dx < -0.04) continue; const a = 0.016 * Math.exp(-0.5 * ((dx - side * 0.03) ** 2 + (T[3 * i + 1] - j[1]) ** 2) / 0.05 ** 2) * smoothstep(dz / 0.04 + 0.5); F1[3 * i] = side * a * 0.5; F1[3 * i + 2] = a; } fields.push([k, [0, 0], -1, F1]); } // shoulders about y
+      const BP = new Float64Array(3 * N), BS = new Float64Array(3 * N), TS = new Float64Array(3 * N), TP = new Float64Array(3 * N), OUT = new Float64Array(3 * N);
+      function rotations() {
+        const R = Array.from({ length: 16 }, () => M3.I());
+        R[4] = Ry(rad(S.sh)); R[7] = Ry(-rad(S.sh)); R[5] = Rz(-rad(S.el)); R[8] = Rz(rad(S.el)); R[10] = R[13] = Rx(-rad(S.hip)); R[11] = R[14] = Rx(rad(S.kn)); R[2] = Rz(rad(S.nk));
+        return R;
+      }
+      const c0 = lin(C.surf), c1 = lin(C.acc), tc = new THREE.Color(); const wc = WCOLORS.map(x => lin(x));
+      function update() {
+        const R = rotations();
+        shapeBody(B, S.beta, TS); for (let k = 0; k < 3 * N; k++) BS[k] = TS[k] - T[k];
+        BP.fill(0); let nActive = 0;
+        for (const [k, [r, c], sg, F] of fields) { const f = R[k][r][c] - (r === c ? 1 : 0); if (Math.abs(f) > 1e-9) nActive++; const coef = sg * f; if (!coef) continue; for (let q = 0; q < 3 * N; q++) BP[q] += coef * F[q]; }
+        for (let q = 0; q < 3 * N; q++) TP[q] = TS[q] + (S.bp ? BP[q] : 0);
+        const J = B.regress(TS);
+        // kinematic chain: G_k = G_parent [R_k, j_k − j_parent]; G'_k = G_k [I, −j_k]
+        const G = [], Gp = [];
+        for (let k = 0; k < 16; k++) { const par = PARENT[k]; const t = par < 0 ? J[k] : [J[k][0] - J[par][0], J[k][1] - J[par][1], J[k][2] - J[par][2]]; const L = A34.make(R[k], t); G[k] = par < 0 ? L : A34.mul(G[par], L); Gp[k] = A34.mul(G[k], A34.make(M3.I(), J[k].map(x => -x))); }
+        for (let i = 0; i < N; i++) {
+          const m = new Float64Array(12); for (let q = 0; q < 4; q++) { const w = B.Ww[4 * i + q]; if (!w) continue; const A = Gp[B.Wi[4 * i + q]]; for (let e = 0; e < 12; e++) m[e] += w * A[e]; }
+          const x = TP[3 * i], y = TP[3 * i + 1], z = TP[3 * i + 2];
+          OUT[3 * i] = m[0] * x + m[1] * y + m[2] * z + m[3]; OUT[3 * i + 1] = m[4] * x + m[5] * y + m[6] * z + m[7]; OUT[3 * i + 2] = m[8] * x + m[9] * y + m[10] * z + m[11];
+        }
+        setPositions(P[0].g, T); setPositions(P[1].g, TS); const T3 = new Float64Array(3 * N); for (let q = 0; q < 3 * N; q++) T3[q] = TS[q] + BP[q]; setPositions(P[2].g, T3); setPositions(P[3].g, OUT);
+        // colours: B_P magnitude on panel 3, blend weights on panel 4 (optional)
+        let mx = 0; const col2 = P[2].g.attributes.color.array; for (let i = 0; i < N; i++) { const mg = Math.hypot(BP[3 * i], BP[3 * i + 1], BP[3 * i + 2]); mx = Math.max(mx, mg); ramp(c0, c1, clamp(mg / 0.012, 0, 1), tc); col2[3 * i] = tc.r; col2[3 * i + 1] = tc.g; col2[3 * i + 2] = tc.b; } P[2].g.attributes.color.needsUpdate = true;
+        if (S.colorW) { const col3 = P[3].g.attributes.color.array; for (let i = 0; i < N; i++) { let r = 0, g2 = 0, b = 0; for (let q = 0; q < 4; q++) { const w = B.Ww[4 * i + q], c = wc[B.Wi[4 * i + q]]; r += w * c.r; g2 += w * c.g; b += w * c.b; } col3[3 * i] = r; col3[3 * i + 1] = g2; col3[3 * i + 2] = b; } P[3].g.attributes.color.needsUpdate = true; }
+        P[3].m.vertexColors = S.colorW; P[3].m.needsUpdate = true;
+        sk[1].set(J); sk[2].set(J); sk[3].set(G.map(A => [A[3], A[7], A[11]]));
+        sk.forEach(s => s && (s.visible = S.skel));
+        rd.set([
+          ['vertices N, joints K', `${N.toLocaleString('en')}, 16`],
+          ['β', '(' + S.beta.map(b => fmt(b, 1)).join(', ') + ')'],
+          ['pose features f(θ)', `vec(R_k − I) over 15 joints: 135 numbers; ${nActive} of them drive a hand-designed corrective here`],
+          ['largest ‖B_P(θ)‖', `${fmt(mx * 1000, 1)} mm`],
+          ['height', `${fmt(bodyHeight(TS) * 100, 1)} cm`]
+        ]);
+      }
+      seg(panel, { id: 'sm-view', label: 'View', options: [['pipe', 'Pipeline (4 stages)'], ['final', 'Posed mesh only']], value: S.view, onChange: v => { S.view = v; setView(); } });
+      groupTitle(panel, 'Shape β');
+      [0, 1].forEach(c => slider(panel, { id: 'sm-b' + c, label: `β${'₁₂'[c]}`, min: -3, max: 3, step: 0.05, value: 0, f: v => fmt(v, 2), onInput: v => { S.beta[c] = v; update(); } }));
+      groupTitle(panel, 'Pose θ (both sides)');
+      const ps = [['sh', 'shoulders down', 0, 85], ['el', 'elbows', 0, 140], ['hip', 'hips forward', -20, 90], ['kn', 'knees', 0, 140], ['nk', 'neck twist', -80, 80]];
+      ps.forEach(([k, l, a, b]) => slider(panel, { id: 'sm-' + k, label: l, min: a, max: b, step: 1, value: S[k], f: v => v + '°', onInput: v => { S[k] = v; update(); } }));
+      check(panel, { id: 'sm-bp', label: 'Pose blend shapes B_P(θ) in the final mesh', checked: true, onChange: v => { S.bp = v; update(); } });
+      check(panel, { id: 'sm-skel', label: 'Joints and skeleton', checked: true, onChange: v => { S.skel = v; update(); } });
+      check(panel, { id: 'sm-w', label: 'Colour the posed mesh by blend weights 𝒲', checked: false, onChange: v => { S.colorW = v; update(); } });
+      const rd = readout(panel);
+      note(panel, 'Each corrective here is a fixed displacement field Pᵢ multiplied by one entry of R_k(θ) − I (for example cos κ − 1 at a knee). In SMPL all 207 such shapes are learned from registrations.');
+      update();
+    }, 30);
+    return () => { alive = false; clearTimeout(timer); if (MV) MV.dispose(); };
+  }
+});
+
+/* ───────────── router ───────────── */
+const nav = document.getElementById('nav'), main = document.getElementById('main');
+DEMOS.forEach(d => nav.append(h('a', { href: '#' + d.id, 'data-id': d.id }, d.title, h('small', {}, d.note))));
+let cleanup = null;
+function show() {
+  const id = (location.hash || '').slice(1); const d = DEMOS.find(x => x.id === id) || DEMOS[0];
+  if (cleanup) { try { cleanup(); } catch (e) { console.error(e); } cleanup = null; }
+  nav.querySelectorAll('a').forEach(a => a.setAttribute('aria-current', a.dataset.id === d.id ? 'page' : 'false'));
+  const stage = h('div', { class: 'stage', id: 'stage' }), panel = h('aside', { class: 'panel', 'aria-label': 'Controls' });
+  const [pre, em, post] = d.tryText;
+  main.replaceChildren(
+    h('div', { class: 'demo-head' }, h('h2', {}, d.title), h('p', {}, d.lead), h('p', { class: 'try' }, pre, h('b', {}, em), post)),
+    h('div', { class: 'work' }, stage, panel)
+  );
+  try { cleanup = d.mount(stage, panel); } catch (e) { console.error(e); stage.append(h('p', { class: 'err' }, 'This demo could not start: ' + e.message)); }
+}
+/* typography: render X_Y in prose as X with a subscript Y (B_P, T_P, p_b, j_parent, ...) */
+const SUB_RE = /([A-Za-zθβω\u{1D4A5}\u{1D4B2})′])_(?:\{([^}]*)\}|([A-Za-z0-9]+))/gu;
+function subify(root) {
+  const tw = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, { acceptNode: n => (n.parentElement && !n.parentElement.closest('script,style,textarea,input,sub') && SUB_RE.test(n.nodeValue)) ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT });
+  const nodes = []; while (tw.nextNode()) nodes.push(tw.currentNode);
+  for (const n of nodes) {
+    const frag = document.createDocumentFragment(); let last = 0; const t = n.nodeValue; SUB_RE.lastIndex = 0; let m;
+    while ((m = SUB_RE.exec(t))) { frag.append(t.slice(last, m.index + m[1].length)); const sb = document.createElement('sub'); sb.textContent = m[2] ?? m[3]; frag.append(sb); last = m.index + m[0].length; }
+    frag.append(t.slice(last)); n.replaceWith(frag);
+  }
+}
+new MutationObserver(muts => { for (const mu of muts) { const el = mu.target.nodeType === 3 ? mu.target.parentElement : mu.target; if (el) subify(el); } }).observe(document.body, { childList: true, subtree: true, characterData: true });
+subify(document.body);
+addEventListener('hashchange', show);
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change', show);
+new MutationObserver(show).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+show();
+</script>
+
+</body></html>

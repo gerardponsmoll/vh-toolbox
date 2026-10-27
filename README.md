@@ -16,10 +16,16 @@ code behind it is short enough to read and modify.
 | 2.2 | `demos/02_rotations.py` | Ways to write a rotation: order, matrices, Euler angles and gimbal lock, interpolation, axis-angle |
 | 2.2 | `demos/02_kinematic_chain.py` | A kinematic chain: product of exponentials, the Jacobian, inverse kinematics |
 | 2.2 | `demos/02_smpl_ik.py` | Inverse kinematics on the SMPL body |
+| 3.1 | `browser/03_1_surface_representations.html` | Implicit and explicit surfaces, CSG, level sets, meshes, Bézier curves and patches, subdivision |
+| 3.2 | `browser/03_2_procrustes.html` | Similarity transforms, the SVD, Procrustes alignment |
+| 4.1 | `browser/04_1_icp.html` | Closest points, ICP step by step, local minima, k-d trees, ICP in 3D |
+| 4.2 | `browser/04_2_body_model.html` | Exponential map, skinning artefacts, pose and shape blend shapes, a toy SMPL |
 
 `01_smpl_viewer` and `02_smpl_ik` need the SMPL model (see below). `02_camera` and
 `02_telephoto` use it when it is there and show simpler figures otherwise. The other
 demos run without it.
+
+The `browser/` demos need no installation at all: see [Browser demos](#browser-demos).
 
 ## Setup
 
@@ -260,6 +266,18 @@ stores poses: the rotation of each joint relative to its parent, as axis-angle.
    (The pelvis is never in the chain: turning it would turn the whole body.)
 2. Pull the target through the body or bend the elbow backwards. What would you add
    to stop poses that a person cannot make?
+
+## Browser demos
+
+```bash
+open browser/03_2_procrustes.html     # or double-click the file
+```
+
+Each file in `browser/` is a complete page: download it (or the whole repository),
+double-click it, and it opens in your browser. The JavaScript is inside the file, in its
+`<script type="module">` block. The pages load [three.js](https://threejs.org) from the
+internet, so you need a connection. Every page has several sections, listed at the top,
+one per idea from the slides. The body model page uses a procedural toy body, not SMPL data.
 
 ## The code
 

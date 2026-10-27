@@ -1,0 +1,607 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<meta name="claude:viewport-fit-sides" content="cover">
+<title>Procrustes Alignment Lab</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;600&family=Source+Serif+4:opsz,wght@8..60,600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: lab shell — demo list on the left, one live demo at a time (stage + control panel). Tübingen red marks what you can act on. */
+:root{
+  --bg:#ffffff; --panel:#f5f6f7; --ink:#1d262e; --muted:#5d6872; --line:#e2e5e9;
+  --accent:#a51e37; --accent-ink:#ffffff; --gold:#8f7b3c; --slate:#3e5566;
+  --surface:#c9ced4; --canvas:#ffffff; --grid:#eef0f2;
+  --font-body:'Source Sans 3',system-ui,-apple-system,'Segoe UI',sans-serif;
+  --font-head:'Source Serif 4',Georgia,'Times New Roman',serif;
+  --font-mono:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#121519; --panel:#1a1f24; --ink:#e6eaee; --muted:#9aa5af; --line:#2a3138;
+  --accent:#e0566f; --accent-ink:#121519; --gold:#d4c28a; --slate:#9fb6c8;
+  --surface:#8d959d; --canvas:#121519; --grid:#1d2329; color-scheme:dark;
+}}
+:root[data-theme="dark"]{
+  --bg:#121519; --panel:#1a1f24; --ink:#e6eaee; --muted:#9aa5af; --line:#2a3138;
+  --accent:#e0566f; --accent-ink:#121519; --gold:#d4c28a; --slate:#9fb6c8;
+  --surface:#8d959d; --canvas:#121519; --grid:#1d2329; color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{background:var(--bg);color:var(--ink);font-family:var(--font-body);font-size:16px;line-height:1.5;-webkit-font-smoothing:antialiased}
+.top{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;padding-block:14px;padding-left:max(18px,env(safe-area-inset-left,0px));padding-right:max(18px,env(safe-area-inset-right,0px));border-bottom:1px solid var(--line)}
+.top h1{font-family:var(--font-head);font-weight:600;font-size:1.3rem;margin:0}
+.top .sub{color:var(--muted);font-size:.9rem}
+.shell{display:grid;grid-template-columns:250px minmax(0,1fr);min-height:calc(100% - 56px)}
+nav.demos{border-right:1px solid var(--line);padding-block:12px;padding-left:max(10px,env(safe-area-inset-left,0px));padding-right:10px}
+nav.demos a{display:block;padding:9px 12px;border-radius:8px;color:var(--ink);text-decoration:none;font-size:.95rem;line-height:1.3}
+nav.demos a small{display:block;color:var(--muted);font-size:.78rem;margin-top:2px}
+nav.demos a:hover{background:var(--panel)}
+nav.demos a[aria-current="page"]{background:var(--panel);color:var(--accent);font-weight:600}
+nav.demos a[aria-current="page"] small{font-weight:400}
+main{padding-block:18px 28px;padding-left:22px;padding-right:max(18px,env(safe-area-inset-right,0px));min-width:0}
+.demo-head{max-width:78ch}
+.demo-head h2{font-family:var(--font-head);font-weight:600;font-size:1.65rem;line-height:1.2;margin:0;text-wrap:balance}
+.demo-head p{margin:.4rem 0 0;color:var(--muted)}
+.demo-head p.try{color:var(--ink)}
+.demo-head p.try b{color:var(--accent);font-weight:600}
+.work{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:18px;margin-top:16px;align-items:start}
+.stage{position:relative;background:var(--canvas);border:1px solid var(--line);border-radius:12px;overflow:hidden;height:min(68vh,620px);min-height:340px;touch-action:none}
+.stage canvas{display:block}
+.stage.split{display:grid;grid-template-columns:1fr 1fr}
+.stage.split>div{position:relative;min-width:0;min-height:0}
+.stage.split>div+div{border-left:1px solid var(--line)}
+.stage.stack{display:grid;grid-template-rows:68fr 32fr}
+.stage.stack>div{position:relative;min-height:0}
+.stage.stack>div+div{border-top:1px solid var(--line)}
+.stage .tag{position:absolute;left:12px;top:10px;font-size:.78rem;color:var(--muted);background:color-mix(in srgb,var(--canvas) 85%,transparent);padding:2px 8px;border-radius:6px;pointer-events:none;z-index:2}
+.stage .hint{position:absolute;right:12px;bottom:10px;font-size:.78rem;color:var(--muted);pointer-events:none;z-index:2}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px;display:flex;flex-direction:column;gap:14px;min-width:0}
+.ctl label{display:flex;justify-content:space-between;gap:8px;font-size:.88rem;color:var(--ink);margin-bottom:4px}
+.ctl label output{font-family:var(--font-mono);font-size:.8rem;color:var(--muted)}
+input[type=range]{width:100%;accent-color:var(--accent)}
+.seg{display:flex;flex-wrap:wrap;gap:6px}
+.seg button,.btn{font:inherit;font-size:.86rem;border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:7px;padding:6px 10px;cursor:pointer}
+.seg button[aria-pressed="true"]{border-color:var(--accent);color:var(--accent);font-weight:600}
+.btn:hover,.seg button:hover{border-color:var(--accent)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);font-weight:600}
+.btn.primary:hover{filter:brightness(1.08)}
+.row{display:flex;gap:8px;flex-wrap:wrap}
+.chk{display:flex;align-items:center;gap:8px;font-size:.88rem;cursor:pointer}
+.chk input{accent-color:var(--accent);width:16px;height:16px}
+.group-title{font-size:.72rem;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin:2px 0 -6px}
+.read{font-family:var(--font-mono);font-size:.8rem;background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:10px 12px;display:grid;grid-template-columns:auto minmax(0,1fr);gap:4px 12px;overflow-x:auto}
+.read dt{color:var(--muted)}
+.read dd{margin:0;color:var(--ink);white-space:pre-wrap;overflow-wrap:anywhere}
+.read .full{grid-column:1/-1}
+.read dd.full{margin:0 0 4px 10px}
+.verdict{font-size:.92rem;padding:8px 12px;border-radius:8px;background:var(--bg);border:1px solid var(--line)}
+.verdict b{color:var(--accent)}
+.mini{width:100%;aspect-ratio:1/1;max-width:100%;background:var(--canvas);border:1px solid var(--line);border-radius:8px;display:block}
+.math{font-family:var(--font-head);font-style:italic}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.err{padding:20px;color:var(--muted)}
+@media (max-width:980px){.work{grid-template-columns:minmax(0,1fr)}}
+@media (max-width:760px){
+  .shell{grid-template-columns:minmax(0,1fr)}
+  nav.demos{border-right:none;border-bottom:1px solid var(--line);display:flex;gap:6px;overflow-x:auto;padding-right:max(10px,env(safe-area-inset-right,0px))}
+  nav.demos a{white-space:nowrap;flex:0 0 auto}
+  nav.demos a small{display:none}
+  main{padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+  .stage{height:56vh}
+  .stage.split{grid-template-columns:1fr;grid-template-rows:1fr 1fr;height:80vh}
+  .stage.split>div+div{border-left:none;border-top:1px solid var(--line)}
+}
+@media (prefers-reduced-motion:reduce){*{scroll-behavior:auto}}
+</style>
+
+<header class="top">
+  <h1>Procrustes Alignment Lab</h1>
+  <span class="sub">Virtual Humans · Lecture 3.2 · interactive companions to the slides</span>
+</header>
+<div class="shell">
+  <nav class="demos" id="nav" aria-label="Demos"></nav>
+  <main id="main"><p class="err">Loading the 3D engine…</p></main>
+</div>
+
+<script type="importmap">
+{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"}}
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+/* ───────────── helpers ───────────── */
+const tok = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+function h(tag, attrs = {}, ...kids) {
+  const e = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs)) {
+    if (k === 'class') e.className = v;
+    else if (k.startsWith('on') && typeof v === 'function') e.addEventListener(k.slice(2), v);
+    else if (v !== false && v != null) e.setAttribute(k, v === true ? '' : v);
+  }
+  for (const k of kids.flat()) { if (k == null) continue; e.append(k.nodeType ? k : document.createTextNode(String(k))); }
+  return e;
+}
+const fmt = (v, d = 2) => (Math.abs(v) < 0.5 * Math.pow(10, -d) ? 0 : v).toFixed(d);
+const clamp = (x, a, b) => Math.min(b, Math.max(a, x));
+
+function slider(panel, { id, label, min, max, step, value, f = v => v, onInput }) {
+  const out = h('output', { for: id }, f(value));
+  const inp = h('input', { type: 'range', id, min, max, step, value });
+  inp.addEventListener('input', () => { const v = parseFloat(inp.value); out.textContent = f(v); onInput(v); });
+  const wrap = h('div', { class: 'ctl' }, h('label', { for: id }, h('span', {}, label), out), inp);
+  panel.append(wrap);
+  return { wrap, set(v) { inp.value = v; out.textContent = f(v); }, get value() { return parseFloat(inp.value); } };
+}
+function seg(panel, { id, label, options, value, onChange }) {
+  const box = h('div', { class: 'seg', role: 'group', 'aria-label': label, id });
+  const btns = options.map(([val, text]) => {
+    const b = h('button', { type: 'button', 'aria-pressed': String(val === value) }, text);
+    b.addEventListener('click', () => { btns.forEach(x => x.setAttribute('aria-pressed', 'false')); b.setAttribute('aria-pressed', 'true'); onChange(val); });
+    box.append(b); return b;
+  });
+  const wrap = h('div', { class: 'ctl' }, label ? h('label', {}, h('span', {}, label)) : null, box);
+  panel.append(wrap);
+  return { wrap, set(val) { btns.forEach((b, i) => b.setAttribute('aria-pressed', String(options[i][0] === val))); } };
+}
+function check(panel, { id, label, checked, onChange }) {
+  const inp = h('input', { type: 'checkbox', id }); inp.checked = !!checked;
+  inp.addEventListener('change', () => onChange(inp.checked));
+  const wrap = h('label', { class: 'chk', for: id }, inp, label);
+  panel.append(wrap); return { wrap, input: inp };
+}
+function button(parent, label, onClick, primary = false) {
+  const b = h('button', { type: 'button', class: 'btn' + (primary ? ' primary' : '') }, label);
+  b.addEventListener('click', onClick); parent.append(b); return b;
+}
+function readout(panel) {
+  const dl = h('dl', { class: 'read' }); panel.append(dl);
+  return { el: dl, set(rows) { dl.replaceChildren(...rows.flatMap(([k, v]) => { const long = String(v).includes('\n') || String(v).length > 20; return [h('dt', { class: long ? 'full' : null }, k), h('dd', { class: long ? 'full' : null }, v)]; })); } };
+}
+function verdict(panel) { const d = h('div', { class: 'verdict' }); panel.append(d); return d; }
+function groupTitle(panel, t) { panel.append(h('div', { class: 'group-title' }, t)); }
+
+function srgb(hex) { const c = new THREE.Color(hex); const o = {}; c.getRGB(o, THREE.SRGBColorSpace); return new THREE.Vector3(o.r, o.g, o.b); }
+
+/* three.js viewer with orbit controls, z-up like the slides */
+function viewer(stage, { cam = [3.5, -4.5, 2.8], target = [0, 0, 0] } = {}) {
+  const renderer = new THREE.WebGLRenderer({ antialias: true });
+  renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+  stage.append(renderer.domElement);
+  const scene = new THREE.Scene();
+  scene.background = new THREE.Color(tok('--canvas'));
+  const camera = new THREE.PerspectiveCamera(38, 1, 0.01, 200);
+  camera.up.set(0, 0, 1); camera.position.set(...cam);
+  const controls = new OrbitControls(camera, renderer.domElement);
+  controls.target.set(...target); controls.enableDamping = true; controls.update();
+  scene.add(new THREE.HemisphereLight(0xffffff, 0x7d838a, 1.5));
+  const d1 = new THREE.DirectionalLight(0xffffff, 1.7); d1.position.set(3, -4, 6); scene.add(d1);
+  const d2 = new THREE.DirectionalLight(0xffffff, 0.45); d2.position.set(-5, 3, -2); scene.add(d2);
+  const ro = new ResizeObserver(() => {
+    const w = Math.max(1, stage.clientWidth), hh = Math.max(1, stage.clientHeight);
+    renderer.setSize(w, hh, false); renderer.domElement.style.width = '100%'; renderer.domElement.style.height = '100%';
+    camera.aspect = w / hh; camera.zoom = Math.min(1, (w / hh) * 1.25); camera.updateProjectionMatrix();
+  });
+  ro.observe(stage);
+  let raf = 0, frame = null;
+  const loop = () => { raf = requestAnimationFrame(loop); controls.update(); if (frame) frame(); renderer.render(scene, camera); };
+  loop();
+  return {
+    renderer, scene, camera, controls,
+    set onFrame(f) { frame = f; },
+    fit(pos, tgt = [0, 0, 0]) { camera.position.set(...pos); controls.target.set(...tgt); controls.update(); },
+    dispose() {
+      cancelAnimationFrame(raf); ro.disconnect(); controls.dispose();
+      scene.traverse(o => { if (o.geometry) o.geometry.dispose(); if (o.material) [].concat(o.material).forEach(m => m.dispose()); });
+      renderer.dispose(); renderer.domElement.remove();
+    }
+  };
+}
+/* click-vs-drag detector for picking on an orbit-controlled canvas */
+function onClick(el, cb) {
+  let sx = 0, sy = 0;
+  const down = e => { sx = e.clientX; sy = e.clientY; };
+  const up = e => { if (Math.hypot(e.clientX - sx, e.clientY - sy) < 5) cb(e); };
+  el.addEventListener('pointerdown', down); el.addEventListener('pointerup', up);
+  return () => { el.removeEventListener('pointerdown', down); el.removeEventListener('pointerup', up); };
+}
+function ndc(e, el) { const r = el.getBoundingClientRect(); return new THREE.Vector2(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1); }
+
+/* 2D canvas with a world→screen mapping that keeps aspect ratio */
+function canvas2d(host, draw, extent = { x0: -2, x1: 2, y0: -2, y1: 2 }, stretch = false) {
+  const c = h('canvas'); host.append(c);
+  const ctx = c.getContext('2d');
+  const S = { W: 0, H: 0, k: 1, ox: 0, oy: 0 };
+  function layout() {
+    const r = host.getBoundingClientRect(); const dpr = Math.min(devicePixelRatio, 2);
+    S.W = r.width; S.H = r.height;
+    c.width = Math.max(1, Math.round(S.W * dpr)); c.height = Math.max(1, Math.round(S.H * dpr));
+    c.style.width = S.W + 'px'; c.style.height = S.H + 'px'; ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const ew = extent.x1 - extent.x0, eh = extent.y1 - extent.y0, pad = 18;
+    S.k = Math.min((S.W - 2 * pad) / ew, (S.H - 2 * pad) / eh); S.ky = S.k;
+    if (stretch) { S.k = (S.W - 2 * pad) / ew; S.ky = (S.H - 2 * pad) / eh; }
+    S.ox = (S.W - S.k * ew) / 2 - S.k * extent.x0; S.oy = (S.H + S.ky * eh) / 2 + S.ky * extent.y0;
+  }
+  const api = {
+    canvas: c, ctx, S,
+    sx: x => S.ox + S.k * x, sy: y => S.oy - S.ky * y,
+    wx: px => (px - S.ox) / S.k, wy: py => (S.oy - py) / S.ky,
+    redraw() { if (S.W) { ctx.clearRect(0, 0, S.W, S.H); draw(api); } },
+    dispose() { ro.disconnect(); c.remove(); }
+  };
+  const ro = new ResizeObserver(() => { layout(); api.redraw(); }); ro.observe(host);
+  return api;
+}
+/* draggable points on a 2D canvas */
+function draggable(cv, getPts, onMove, radius = 12) {
+  let idx = -1;
+  const pos = e => { const r = cv.canvas.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; };
+  const down = e => {
+    const [px, py] = pos(e); const pts = getPts(); let best = -1, bd = radius;
+    pts.forEach((p, i) => { const d = Math.hypot(cv.sx(p[0]) - px, cv.sy(p[1]) - py); if (d < bd) { bd = d; best = i; } });
+    if (best >= 0) { idx = best; cv.canvas.setPointerCapture(e.pointerId); e.preventDefault(); }
+  };
+  const move = e => {
+    const [px, py] = pos(e);
+    if (idx >= 0) { onMove(idx, [cv.wx(px), cv.wy(py)]); cv.redraw(); return; }
+    const pts = getPts(); const near = pts.some(p => Math.hypot(cv.sx(p[0]) - px, cv.sy(p[1]) - py) < radius);
+    cv.canvas.style.cursor = near ? 'grab' : 'default';
+  };
+  const up = () => { idx = -1; };
+  cv.canvas.addEventListener('pointerdown', down); cv.canvas.addEventListener('pointermove', move);
+  cv.canvas.addEventListener('pointerup', up); cv.canvas.addEventListener('pointercancel', up);
+}
+function dot(ctx, x, y, r, fill, stroke, lw = 1.5) { ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); if (fill) { ctx.fillStyle = fill; ctx.fill(); } if (stroke) { ctx.lineWidth = lw; ctx.strokeStyle = stroke; ctx.stroke(); } }
+function arrow(ctx, x0, y0, x1, y1, color, lw = 2) {
+  const a = Math.atan2(y1 - y0, x1 - x0), L = 9;
+  ctx.strokeStyle = color; ctx.fillStyle = color; ctx.lineWidth = lw;
+  ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x1 - L * Math.cos(a - 0.4), y1 - L * Math.sin(a - 0.4)); ctx.lineTo(x1 - L * Math.cos(a + 0.4), y1 - L * Math.sin(a + 0.4)); ctx.closePath(); ctx.fill();
+}
+/* marching squares on a grid of values → list of segments [[x0,y0,x1,y1],...] in world units */
+function marchingSquares(F, n, m, X, Y, iso = 0) {
+  const segs = [];
+  const lerp = (a, b, fa, fb) => a + (b - a) * ((iso - fa) / (fb - fa));
+  for (let j = 0; j < m - 1; j++) for (let i = 0; i < n - 1; i++) {
+    const f00 = F[j * n + i], f10 = F[j * n + i + 1], f11 = F[(j + 1) * n + i + 1], f01 = F[(j + 1) * n + i];
+    const x0 = X[i], x1 = X[i + 1], y0 = Y[j], y1 = Y[j + 1];
+    const c = (f00 < iso ? 1 : 0) | (f10 < iso ? 2 : 0) | (f11 < iso ? 4 : 0) | (f01 < iso ? 8 : 0);
+    if (c === 0 || c === 15) continue;
+    const eB = () => [lerp(x0, x1, f00, f10), y0], eR = () => [x1, lerp(y0, y1, f10, f11)], eT = () => [lerp(x0, x1, f01, f11), y1], eL = () => [x0, lerp(y0, y1, f00, f01)];
+    const add = (a, b) => segs.push([a[0], a[1], b[0], b[1]]);
+    const center = (f00 + f10 + f11 + f01) / 4 < iso;
+    switch (c) {
+      case 1: case 14: add(eL(), eB()); break;
+      case 2: case 13: add(eB(), eR()); break;
+      case 3: case 12: add(eL(), eR()); break;
+      case 4: case 11: add(eR(), eT()); break;
+      case 6: case 9: add(eB(), eT()); break;
+      case 7: case 8: add(eL(), eT()); break;
+      case 5: if (center) { add(eL(), eT()); add(eB(), eR()); } else { add(eL(), eB()); add(eR(), eT()); } break;
+      case 10: if (center) { add(eL(), eB()); add(eR(), eT()); } else { add(eL(), eT()); add(eB(), eR()); } break;
+    }
+  }
+  return segs;
+}
+function drawSegs(cv, segs, color, lw) {
+  const { ctx } = cv; ctx.strokeStyle = color; ctx.lineWidth = lw; ctx.lineCap = 'round'; ctx.beginPath();
+  for (const s of segs) { ctx.moveTo(cv.sx(s[0]), cv.sy(s[1])); ctx.lineTo(cv.sx(s[2]), cv.sy(s[3])); }
+  ctx.stroke();
+}
+function sampleGrid(f, x0, x1, y0, y1, n, m) {
+  const X = [], Y = [], F = new Float32Array(n * m);
+  for (let i = 0; i < n; i++) X.push(x0 + (x1 - x0) * i / (n - 1));
+  for (let j = 0; j < m; j++) Y.push(y0 + (y1 - y0) * j / (m - 1));
+  for (let j = 0; j < m; j++) for (let i = 0; i < n; i++) F[j * n + i] = f(X[i], Y[j]);
+  return { X, Y, F };
+}
+const B = (n, k, t) => { let c = 1; for (let i = 1; i <= k; i++) c = c * (n - k + i) / i; return c * Math.pow(t, k) * Math.pow(1 - t, n - k); };
+function rampColor(k, n) { // gold → red ramp so control point k and basis B_k share a colour
+  const a = new THREE.Color(tok('--gold')), b = new THREE.Color(tok('--accent'));
+  return '#' + a.lerp(b, n === 0 ? 1 : k / n).getHexString();
+}
+
+/* ───────────── demos ───────────── */
+const DEMOS = [];
+
+/* seeded random numbers so every student sees the same figure */
+function rng(seed) { return () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+/* a human-like point cloud (z up), sampled on capsules — stands in for a body scan */
+function humanCloud(N = 700, seed = 7) {
+  const R = rng(seed);
+  const caps = [
+    [[0, 0, 0.72], [0, 0, 0.72], 0.11],            // head
+    [[0, 0, 0.52], [0, 0, 0.6], 0.05],             // neck
+    [[0, 0, 0.12], [0, 0, 0.46], 0.17],            // chest
+    [[0, 0, -0.02], [0, 0, 0.1], 0.15],            // pelvis
+    [[-0.2, 0, 0.47], [-0.5, 0, 0.47], 0.05], [[-0.5, 0, 0.47], [-0.8, 0, 0.47], 0.04],          // right arm (T)
+    [[0.2, 0, 0.47], [0.46, 0, 0.62], 0.05], [[0.46, 0, 0.62], [0.68, 0, 0.82], 0.04],          // left arm (raised)
+    [[-0.1, 0, -0.04], [-0.12, -0.06, -0.44], 0.07], [[-0.12, -0.06, -0.44], [-0.12, -0.02, -0.84], 0.055], [[-0.12, -0.02, -0.86], [-0.12, -0.16, -0.88], 0.04], // right leg
+    [[0.1, 0, -0.04], [0.13, 0.03, -0.44], 0.07], [[0.13, 0.03, -0.44], [0.14, 0.02, -0.84], 0.055], [[0.14, 0.02, -0.86], [0.14, -0.12, -0.88], 0.04]       // left leg
+  ];
+  const area = caps.map(([a, b, r]) => 4 * Math.PI * r * r + 2 * Math.PI * r * Math.hypot(b[0] - a[0], b[1] - a[1], b[2] - a[2]));
+  const tot = area.reduce((x, y) => x + y, 0); const pts = [];
+  for (let n = 0; n < N; n++) {
+    let u = R() * tot, k = 0; while (u > area[k]) { u -= area[k]; k++; }
+    const [a, b, r] = caps[k];
+    const g = () => { let x, y, z, l; do { x = R() * 2 - 1; y = R() * 2 - 1; z = R() * 2 - 1; l = x * x + y * y + z * z; } while (l > 1 || l < 1e-4); l = Math.sqrt(l); return [x / l, y / l, z / l]; };
+    const t = R(), d = g(); const c = [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
+    pts.push([c[0] + r * d[0] * (k === 2 ? 1.25 : 1), c[1] + r * d[1] * 0.85, c[2] + r * d[2]]);
+  }
+  return pts;
+}
+/* small 3×3 linear algebra */
+const M3 = {
+  mul: (A, B) => A.map((r, i) => [0, 1, 2].map(j => r[0] * B[0][j] + r[1] * B[1][j] + r[2] * B[2][j])),
+  T: A => [0, 1, 2].map(i => [A[0][i], A[1][i], A[2][i]]),
+  mv: (A, v) => [0, 1, 2].map(i => A[i][0] * v[0] + A[i][1] * v[1] + A[i][2] * v[2]),
+  det: A => A[0][0] * (A[1][1] * A[2][2] - A[1][2] * A[2][1]) - A[0][1] * (A[1][0] * A[2][2] - A[1][2] * A[2][0]) + A[0][2] * (A[1][0] * A[2][1] - A[1][1] * A[2][0]),
+  I: () => [[1, 0, 0], [0, 1, 0], [0, 0, 1]],
+  str: (A, d = 3) => A.map(r => r.map(x => (x >= 0 ? ' ' : '') + fmt(x, d)).join('  ')).join('\n')
+};
+function eigSym3(A) {
+  const a = A.map(r => r.slice()), V = M3.I();
+  for (let sweep = 0; sweep < 60; sweep++) {
+    if (a[0][1] ** 2 + a[0][2] ** 2 + a[1][2] ** 2 < 1e-24) break;
+    for (const [p, q] of [[0, 1], [0, 2], [1, 2]]) {
+      if (Math.abs(a[p][q]) < 1e-18) continue;
+      const th = (a[q][q] - a[p][p]) / (2 * a[p][q]); const t = (th >= 0 ? 1 : -1) / (Math.abs(th) + Math.sqrt(th * th + 1));
+      const c = 1 / Math.sqrt(t * t + 1), s = t * c;
+      for (let k = 0; k < 3; k++) { const x = a[k][p], y = a[k][q]; a[k][p] = c * x - s * y; a[k][q] = s * x + c * y; }
+      for (let k = 0; k < 3; k++) { const x = a[p][k], y = a[q][k]; a[p][k] = c * x - s * y; a[q][k] = s * x + c * y; }
+      for (let k = 0; k < 3; k++) { const x = V[k][p], y = V[k][q]; V[k][p] = c * x - s * y; V[k][q] = s * x + c * y; }
+    }
+  }
+  return { vals: [a[0][0], a[1][1], a[2][2]], V };
+}
+const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
+function svd3(H) { // H = U Σ Vᵀ
+  const { vals, V } = eigSym3(M3.mul(M3.T(H), H));
+  const order = [0, 1, 2].sort((i, j) => vals[j] - vals[i]);
+  const v = order.map(i => [V[0][i], V[1][i], V[2][i]]); const sig = order.map(i => Math.sqrt(Math.max(vals[i], 0)));
+  const u = [];
+  for (let i = 0; i < 3; i++) {
+    if (sig[i] > 1e-9 * Math.max(sig[0], 1e-12)) { const w = M3.mv(H, v[i]); u.push(w.map(x => x / sig[i])); }
+    else u.push(i === 2 ? cross(u[0], u[1]) : [0, 0, 0]);
+  }
+  const U = [0, 1, 2].map(r => [u[0][r], u[1][r], u[2][r]]), Vm = [0, 1, 2].map(r => [v[0][r], v[1][r], v[2][r]]);
+  return { U, S: sig, V: Vm };
+}
+function procrustes(X, Y, { scale = true, noReflect = true } = {}) {
+  const N = X.length, mx = [0, 0, 0], my = [0, 0, 0];
+  X.forEach(p => p.forEach((x, d) => mx[d] += x / N)); Y.forEach(p => p.forEach((y, d) => my[d] += y / N));
+  const Xc = X.map(p => p.map((x, d) => x - mx[d])), Yc = Y.map(p => p.map((y, d) => y - my[d]));
+  const H = [[0, 0, 0], [0, 0, 0], [0, 0, 0]]; // H = Ȳᵀ X̄ = Σ ȳ x̄ᵀ
+  for (let i = 0; i < N; i++) for (let r = 0; r < 3; r++) for (let c = 0; c < 3; c++) H[r][c] += Yc[i][r] * Xc[i][c];
+  const { U, S, V } = svd3(H);
+  const dRaw = Math.sign(M3.det(M3.mul(U, M3.T(V)))) || 1; const d = noReflect ? dRaw : 1;
+  const D = [[1, 0, 0], [0, 1, 0], [0, 0, d]];
+  const R = M3.mul(M3.mul(U, D), M3.T(V));
+  const nx = Xc.reduce((s, p) => s + p[0] ** 2 + p[1] ** 2 + p[2] ** 2, 0);
+  const s = scale ? (S[0] + S[1] + d * S[2]) / nx : 1;
+  const Rmx = M3.mv(R, mx); const t = my.map((y, k) => y - s * Rmx[k]);
+  return { mx, my, H, U, S, V, R, s, t, detUV: dRaw, d };
+}
+function randomRotation(R) { // uniform random quaternion
+  const u1 = R(), u2 = R(), u3 = R();
+  const q = new THREE.Quaternion(Math.sqrt(1 - u1) * Math.sin(2 * Math.PI * u2), Math.sqrt(1 - u1) * Math.cos(2 * Math.PI * u2), Math.sqrt(u1) * Math.sin(2 * Math.PI * u3), Math.sqrt(u1) * Math.cos(2 * Math.PI * u3));
+  const m = new THREE.Matrix4().makeRotationFromQuaternion(q).elements; return [[m[0], m[4], m[8]], [m[1], m[5], m[9]], [m[2], m[6], m[10]]];
+}
+const rotAngle = R => Math.acos(clamp((R[0][0] + R[1][1] + R[2][2] - 1) / 2, -1, 1)) * 180 / Math.PI;
+function pointsObject(color, size = 0.028) {
+  const g = new THREE.BufferGeometry(); const p = new THREE.Points(g, new THREE.PointsMaterial({ color, size, sizeAttenuation: true }));
+  p.setPts = pts => { const a = new Float32Array(pts.length * 3); pts.forEach((q, i) => { a[3 * i] = q[0]; a[3 * i + 1] = q[1]; a[3 * i + 2] = q[2]; }); g.setAttribute('position', new THREE.BufferAttribute(a, 3)); g.computeBoundingSphere(); };
+  return p;
+}
+
+/* 1 — rigid transformation + scale */
+DEMOS.push({
+  id: 'rigid', title: 'Rigid transformation + scale', note: 'x′ = sRx + t',
+  lead: 'A similarity transform rotates, scales and translates every point the same way: x′ = sRx + t, with R ∈ SO(3), s > 0 and t ∈ ℝ³. Seven numbers move the whole body.',
+  tryText: ['Move the sliders and watch the ', 'whole point cloud move rigidly', '. The rotation matrix has 9 entries but only 3 degrees of freedom: its columns stay orthonormal and det R = 1.'],
+  mount(stage, panel) {
+    const V = viewer(stage, { cam: [2.2, -4.2, 1.6] });
+    const X = humanCloud(800);
+    const ghost = pointsObject(tok('--muted'), 0.022); ghost.material.transparent = true; ghost.material.opacity = 0.45; ghost.setPts(X);
+    const moved = pointsObject(tok('--accent'), 0.028);
+    V.scene.add(ghost, moved);
+    const grid = new THREE.GridHelper(4, 8, tok('--line'), tok('--line')); grid.rotation.x = Math.PI / 2; grid.position.z = -0.95; V.scene.add(grid);
+    const axes = new THREE.AxesHelper(0.5); V.scene.add(axes);
+    const hand = 5; // a fixed sample point to follow
+    const S = { rx: 0, ry: 0, rz: 35, s: 1, t: [0.6, 0, 0.2], follow: true };
+    const arr = new THREE.ArrowHelper(new THREE.Vector3(1, 0, 0), new THREE.Vector3(), 1, new THREE.Color(tok('--ink')).getHex(), 0.07, 0.04); V.scene.add(arr);
+    const pA = new THREE.Mesh(new THREE.SphereGeometry(0.035, 16, 10), new THREE.MeshBasicMaterial({ color: tok('--ink') })), pB = pA.clone(); pB.material = new THREE.MeshBasicMaterial({ color: tok('--accent') }); V.scene.add(pA, pB);
+    function update() {
+      const e = new THREE.Euler(S.rx * Math.PI / 180, S.ry * Math.PI / 180, S.rz * Math.PI / 180, 'XYZ');
+      const m = new THREE.Matrix4().makeRotationFromEuler(e).elements; const R = [[m[0], m[4], m[8]], [m[1], m[5], m[9]], [m[2], m[6], m[10]]];
+      const Y = X.map(p => { const r = M3.mv(R, p); return [S.s * r[0] + S.t[0], S.s * r[1] + S.t[1], S.s * r[2] + S.t[2]]; });
+      moved.setPts(Y);
+      const a = new THREE.Vector3(...X[hand]), b = new THREE.Vector3(...Y[hand]); pA.position.copy(a); pB.position.copy(b);
+      const d = b.clone().sub(a); arr.visible = S.follow && d.length() > 0.05; pA.visible = pB.visible = S.follow; if (arr.visible) { arr.position.copy(a); arr.setDirection(d.clone().normalize()); arr.setLength(d.length(), 0.07, 0.04); }
+      const RtR = M3.mul(M3.T(R), R); const orth = Math.max(...RtR.flat().map((x, i) => Math.abs(x - (i % 4 === 0 ? 1 : 0))));
+      const H4 = [[S.s * R[0][0], S.s * R[0][1], S.s * R[0][2], S.t[0]], [S.s * R[1][0], S.s * R[1][1], S.s * R[1][2], S.t[1]], [S.s * R[2][0], S.s * R[2][1], S.s * R[2][2], S.t[2]], [0, 0, 0, 1]];
+      rd.set([['[sR | t]', H4.map(r => r.map(x => (x >= 0 ? ' ' : '') + fmt(x, 2)).join(' ')).join('\n')], ['det R', fmt(M3.det(R), 4)], ['‖RᵀR − I‖', orth < 1e-9 ? '0  (orthonormal)' : orth.toExponential(1)]]);
+    }
+    groupTitle(panel, 'Rotation R (degrees)');
+    ['x', 'y', 'z'].forEach(ax => slider(panel, { id: 'rg-r' + ax, label: 'about ' + ax, min: -180, max: 180, step: 1, value: S['r' + ax], f: v => v + '°', onInput: v => { S['r' + ax] = v; update(); } }));
+    groupTitle(panel, 'Scale and translation');
+    slider(panel, { id: 'rg-s', label: 'scale s', min: 0.3, max: 2, step: 0.01, value: S.s, f: v => fmt(v), onInput: v => { S.s = v; update(); } });
+    ['x', 'y', 'z'].forEach((ax, i) => slider(panel, { id: 'rg-t' + ax, label: 't' + ax, min: -1.5, max: 1.5, step: 0.01, value: S.t[i], f: v => fmt(v), onInput: v => { S.t[i] = v; update(); } }));
+    check(panel, { id: 'rg-follow', label: 'Follow one point x → x′', checked: true, onChange: v => { S.follow = v; update(); } });
+    const rd = readout(panel);
+    panel.append(h('p', { style: 'margin:0;font-size:.86rem;color:var(--muted)' }, 'Grey: the original points X. Red: X′ = sRX + t. In homogeneous coordinates the whole transform is one 4 × 4 matrix.'));
+    update();
+    return () => V.dispose();
+  }
+});
+
+/* 2 — SVD recap */
+DEMOS.push({
+  id: 'svd', title: 'SVD recap', note: 'A = UΣVᵀ: rotate, stretch, rotate',
+  lead: 'Every matrix factors as A = UΣVᵀ with orthogonal U, V and diagonal Σ ≥ 0. Geometrically: rotate (Vᵀ), stretch along the axes (Σ), rotate again (U).',
+  tryText: ['Change the entries of A and follow the unit circle through ', 'the three steps', '. The red and gold arrows are the right singular vectors v₁, v₂. Try the reflection preset: the letter flips and one of U, V gets det = −1.'],
+  mount(stage, panel) {
+    const S = { a: 1.3, b: 0.6, c: 0.25, d: 0.75 };
+    const cv = canvas2d(stage, draw, { x0: 0, x1: 1, y0: 0, y1: 1 }, true);
+    function svd2(A) {
+      const p = A[0][0] ** 2 + A[1][0] ** 2, q = A[0][0] * A[0][1] + A[1][0] * A[1][1], r = A[0][1] ** 2 + A[1][1] ** 2;
+      const m = (p + r) / 2, dd = Math.sqrt(((p - r) / 2) ** 2 + q * q); const l1 = m + dd, l2 = Math.max(m - dd, 0);
+      const phi = 0.5 * Math.atan2(2 * q, p - r); const v1 = [Math.cos(phi), Math.sin(phi)], v2 = [-Math.sin(phi), Math.cos(phi)];
+      const s1 = Math.sqrt(l1), s2 = Math.sqrt(l2);
+      const Av = v => [A[0][0] * v[0] + A[0][1] * v[1], A[1][0] * v[0] + A[1][1] * v[1]];
+      const u1 = s1 > 1e-9 ? Av(v1).map(x => x / s1) : [1, 0];
+      let u2 = s2 > 1e-9 ? Av(v2).map(x => x / s2) : [-u1[1], u1[0]];
+      return { U: [[u1[0], u2[0]], [u1[1], u2[1]]], S: [s1, s2], V: [[v1[0], v2[0]], [v1[1], v2[1]]] };
+    }
+    const F = [[-0.35, -0.5], [-0.35, 0.5], [0.3, 0.5], [0.3, 0.32], [-0.15, 0.32], [-0.15, 0.08], [0.18, 0.08], [0.18, -0.1], [-0.15, -0.1], [-0.15, -0.5]]; // letter F
+    function draw(cv) {
+      const { ctx, S: D } = cv; const W = D.W, H = D.H;
+      const A = [[S.a, S.b], [S.c, S.d]]; const { U, S: sg, V } = svd2(A);
+      const Vt = [[V[0][0], V[1][0]], [V[0][1], V[1][1]]];
+      const mul = (P, Q) => [[P[0][0] * Q[0][0] + P[0][1] * Q[1][0], P[0][0] * Q[0][1] + P[0][1] * Q[1][1]], [P[1][0] * Q[0][0] + P[1][1] * Q[1][0], P[1][0] * Q[0][1] + P[1][1] * Q[1][1]]];
+      const Sg = [[sg[0], 0], [0, sg[1]]];
+      const stages = [[[1, 0], [0, 1]], Vt, mul(Sg, Vt), mul(U, mul(Sg, Vt))];
+      const labels = ['x', 'Vᵀx', 'ΣVᵀx', 'UΣVᵀx = Ax'], ops = ['Vᵀ', 'Σ', 'U'];
+      const wide = W / H > 1.7; const cols = wide ? 4 : 2, rows = wide ? 1 : 2; const pw = W / cols, ph = H / rows;
+      const R = Math.min(pw, ph) * 0.27; const v1 = [V[0][0], V[1][0]], v2 = [V[0][1], V[1][1]];
+      stages.forEach((M, k) => {
+        const cx = pw * (k % cols + 0.5), cy = ph * (Math.floor(k / cols) + 0.5) + 8; const tr = p => [cx + R * (M[0][0] * p[0] + M[0][1] * p[1]), cy - R * (M[1][0] * p[0] + M[1][1] * p[1])];
+        ctx.strokeStyle = tok('--grid'); ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(cx - pw * 0.42, cy); ctx.lineTo(cx + pw * 0.42, cy); ctx.moveTo(cx, cy - ph * 0.38); ctx.lineTo(cx, cy + ph * 0.38); ctx.stroke();
+        ctx.fillStyle = tok('--grid'); ctx.strokeStyle = tok('--muted'); ctx.lineWidth = 1.5; ctx.beginPath();
+        for (let i = 0; i <= 120; i++) { const a = 2 * Math.PI * i / 120; const p = tr([Math.cos(a), Math.sin(a)]); i ? ctx.lineTo(p[0], p[1]) : ctx.moveTo(p[0], p[1]); } ctx.closePath(); ctx.fill(); ctx.stroke();
+        ctx.fillStyle = tok('--surface'); ctx.beginPath(); F.forEach((p, i) => { const q = tr(p); i ? ctx.lineTo(q[0], q[1]) : ctx.moveTo(q[0], q[1]); }); ctx.closePath(); ctx.fill();
+        const o = tr([0, 0]); const a1 = tr(v1), a2 = tr(v2); arrow(ctx, o[0], o[1], a1[0], a1[1], tok('--accent'), 2.4); arrow(ctx, o[0], o[1], a2[0], a2[1], tok('--gold'), 2.4);
+        ctx.fillStyle = tok('--ink'); ctx.font = `14px ${tok('--font-head')}`; ctx.textAlign = 'center'; ctx.fillText(labels[k], cx, cy - ph * 0.38 - 6);
+        if (k < 3 && (wide || k % 2 === 0)) { const x0 = cx + pw * 0.36, x1 = cx + pw * 0.64; arrow(ctx, x0, cy, x1, cy, tok('--muted'), 1.4); ctx.fillStyle = tok('--muted'); ctx.font = `600 13px ${tok('--font-body')}`; ctx.fillText(ops[k], (x0 + x1) / 2, cy - 8); }
+        if (!wide && k === 1) { ctx.fillStyle = tok('--muted'); ctx.font = `600 13px ${tok('--font-body')}`; ctx.fillText('Σ ↓ (next row)', cx, cy + ph * 0.44); }
+      });
+      ctx.textAlign = 'left';
+      const det2 = M => M[0][0] * M[1][1] - M[0][1] * M[1][0];
+      rd.set([['A', `${fmt(S.a)}  ${fmt(S.b)}\n${fmt(S.c)}  ${fmt(S.d)}`], ['U', `${fmt(U[0][0])}  ${fmt(U[0][1])}\n${fmt(U[1][0])}  ${fmt(U[1][1])}`], ['Σ', `diag(${fmt(sg[0])}, ${fmt(sg[1])})`], ['Vᵀ', `${fmt(Vt[0][0])}  ${fmt(Vt[0][1])}\n${fmt(Vt[1][0])}  ${fmt(Vt[1][1])}`], ['det U, det V', `${fmt(det2(U))}, ${fmt(det2(V))}`], ['det A', fmt(det2(A))]]);
+    }
+    const sl = {};
+    groupTitle(panel, 'Matrix A');
+    [['a', 'a₁₁'], ['b', 'a₁₂'], ['c', 'a₂₁'], ['d', 'a₂₂']].forEach(([k, l]) => sl[k] = slider(panel, { id: 'svd-' + k, label: l, min: -2, max: 2, step: 0.01, value: S[k], f: v => fmt(v), onInput: v => { S[k] = v; cv.redraw(); } }));
+    const row = h('div', { class: 'row' }); panel.append(row);
+    const preset = (a, b, c, d) => () => { Object.assign(S, { a, b, c, d }); Object.entries(S).forEach(([k, v]) => sl[k].set(v)); cv.redraw(); };
+    button(row, 'Rotation', preset(0.8, -0.6, 0.6, 0.8)); button(row, 'Stretch', preset(1.6, 0, 0, 0.5)); button(row, 'Shear', preset(1, 0.9, 0, 1)); button(row, 'Reflection', preset(1.2, 0.3, 0.4, -0.7));
+    const rd = readout(panel);
+    cv.redraw();
+    return () => cv.dispose();
+  }
+});
+
+/* 3 — Procrustes alignment, step by step */
+DEMOS.push({
+  id: 'procrustes', title: 'Procrustes alignment', note: 'Center, rotate (SVD), scale, translate',
+  lead: 'Given corresponding points X and Y, find s, R, t minimising Σᵢ ‖sRxᵢ + t − yᵢ‖². The solution is closed-form: centre both clouds, take the SVD of ȲᵀX̄, then read off scale and translation.',
+  tryText: ['Press ', 'Run all', ' or step through the algorithm. Then add noise, break some correspondences, or mirror the target and see which assumption each one violates.'],
+  mount(stage, panel) {
+    const V = viewer(stage, { cam: [2.7, -5.4, 2.2] });
+    const X = humanCloud(600, 11);
+    const src = pointsObject(tok('--slate'), 0.03), tgt = pointsObject(tok('--accent'), 0.03);
+    const links = new THREE.LineSegments(new THREE.BufferGeometry(), new THREE.LineBasicMaterial({ color: tok('--muted'), transparent: true, opacity: 0.35 }));
+    V.scene.add(src, tgt, links);
+    const cA = new THREE.Mesh(new THREE.SphereGeometry(0.05, 16, 10), new THREE.MeshBasicMaterial({ color: tok('--slate') })), cB = new THREE.Mesh(new THREE.SphereGeometry(0.05, 16, 10), new THREE.MeshBasicMaterial({ color: tok('--accent') }));
+    V.scene.add(cA, cB);
+    const S = { seed: 3, noise: 0.01, wrong: 0, mirror: false, scale: true, noReflect: true, links: true, stage: 0, anim: null };
+    let truth, Y, sol;
+    const steps = ['Input', '1 · Centre both clouds', '2 · Rotate by R = UVᵀ', '3 · Scale by s', '4 · Translate: t = ȳ − sRx̄'];
+    function makeTarget() {
+      const R = rng(S.seed * 7919 + 1); const Rt = randomRotation(R); const st = 0.7 + 0.7 * R(); const tt = [R() * 2.4 - 1.2, R() * 1.6 - 0.8, R() * 1.0 - 0.3];
+      const G = () => { let u = 0; for (let k = 0; k < 6; k++) u += R(); return (u - 3) / Math.sqrt(0.5); };
+      Y = X.map(p => { const q = S.mirror ? [-p[0], p[1], p[2]] : p; const r = M3.mv(Rt, q); return [st * r[0] + tt[0] + S.noise * G(), st * r[1] + tt[1] + S.noise * G(), st * r[2] + tt[2] + S.noise * G()]; });
+      const nWrong = Math.round(S.wrong / 100 * Y.length); const idx = Array.from({ length: Y.length }, (_, i) => i);
+      for (let i = 0; i < nWrong; i++) { const j = i + Math.floor(R() * (Y.length - i)); [idx[i], idx[j]] = [idx[j], idx[i]]; }
+      const perm = idx.slice(0, nWrong); const shuffled = perm.slice().sort(() => R() - 0.5); const Y2 = Y.slice(); perm.forEach((a, k) => Y2[a] = Y[shuffled[k]]); Y = Y2;
+      truth = { R: S.mirror ? M3.mul(Rt, [[-1, 0, 0], [0, 1, 0], [0, 0, 1]]) : Rt, s: st, t: tt };
+      sol = procrustes(X, Y, { scale: S.scale, noReflect: S.noReflect });
+    }
+    // configuration of both clouds at a (possibly fractional) stage
+    function config(stg) {
+      const k = Math.floor(stg), f = stg - k, { mx, my, R, s } = sol;
+      const q = new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().set(R[0][0], R[0][1], R[0][2], 0, R[1][0], R[1][1], R[1][2], 0, R[2][0], R[2][1], R[2][2], 0, 0, 0, 0, 1));
+      const rotFrac = g => { if (sol.d * sol.detUV < 0 || M3.det(R) < 0) return g < 0.5 ? M3.I() : R; const qq = new THREE.Quaternion().slerp(q, g); const m = new THREE.Matrix4().makeRotationFromQuaternion(qq).elements; return [[m[0], m[4], m[8]], [m[1], m[5], m[9]], [m[2], m[6], m[10]]]; };
+      const shiftX = clamp(stg, 0, 1), shiftBack = clamp(stg - 3, 0, 1);
+      const Rk = stg >= 2 ? R : stg > 1 ? rotFrac(stg - 1) : M3.I();
+      const sk = stg >= 3 ? s : stg > 2 ? 1 + (s - 1) * (stg - 2) : 1;
+      const S2 = X.map(p => { const c = p.map((x, d) => x - mx[d] * shiftX); const r = M3.mv(Rk, c); return r.map((x, d) => sk * x + my[d] * shiftBack); });
+      const T2 = Y.map(p => p.map((y, d) => y - my[d] * shiftX + my[d] * shiftBack));
+      return [S2, T2];
+    }
+    function rms(A, B) { let e = 0; for (let i = 0; i < A.length; i++) e += (A[i][0] - B[i][0]) ** 2 + (A[i][1] - B[i][1]) ** 2 + (A[i][2] - B[i][2]) ** 2; return Math.sqrt(e / A.length); }
+    function show(stg) {
+      const [A, Bp] = config(stg); src.setPts(A); tgt.setPts(Bp);
+      const L = []; for (let i = 0; i < A.length; i += 6) L.push(...A[i], ...Bp[i]); links.geometry.dispose(); links.geometry = new THREE.BufferGeometry(); links.geometry.setAttribute('position', new THREE.Float32BufferAttribute(L, 3)); links.visible = S.links;
+      const cen = P => P.reduce((a, p) => a.map((x, d) => x + p[d] / P.length), [0, 0, 0]); cA.position.set(...cen(A)); cB.position.set(...cen(Bp));
+      const k = Math.round(stg); stepLabel.textContent = steps[k];
+      const e = rms(A, Bp);
+      const rows = [['step', steps[k]], ['RMS error', fmt(e, 4)]];
+      if (k >= 1) rows.push(['x̄', `(${sol.mx.map(x => fmt(x)).join(', ')})`], ['ȳ', `(${sol.my.map(x => fmt(x)).join(', ')})`]);
+      if (k >= 2) rows.push(['ȲᵀX̄ = UΣVᵀ', `σ = ${sol.S.map(x => fmt(x, 2)).join(', ')}`], ['det(UVᵀ)', sol.detUV > 0 ? '+1' : '−1  (reflection)'], ['R', M3.str(sol.R, 2)]);
+      if (k >= 3) rows.push(['s = tr(Σ)/‖X̄‖²', `${fmt(sol.s, 3)}   (true ${fmt(truth.s, 3)})`]);
+      if (k >= 4) rows.push(['t', `(${sol.t.map(x => fmt(x)).join(', ')})`], ['error vs. true R', M3.det(M3.mul(M3.T(truth.R), sol.R)) > 0 ? `${fmt(rotAngle(M3.mul(M3.T(truth.R), sol.R)), 2)}°` : 'cannot match (det differs)']);
+      rd.set(rows);
+      let msg = '';
+      if (k === 4) {
+        if (S.mirror && S.noReflect) msg = 'The target is a mirror image. With det(R) = +1 enforced, no rotation can match it — the error stays large.';
+        else if (S.mirror) msg = 'Reflections allowed: R has det = −1, so it is not a rotation. This is why the det correction exists.';
+        else if (S.wrong > 0) msg = `Wrong correspondences pull the estimate off. Procrustes assumes xᵢ ↔ yᵢ are correct — finding them is the job of ICP (next lecture).`;
+        else if (!S.scale && Math.abs(truth.s - 1) > 0.05) msg = 'Scale is fixed to 1 but the target is scaled: the best rigid fit cannot close the gap.';
+        else msg = S.noise > 0.03 ? 'With noise there is no exact fit; this is the least-squares optimum.' : 'Aligned. The remaining error is the noise level.';
+      }
+      note.textContent = msg; note.hidden = !msg;
+    }
+    function goTo(target) {
+      if (S.anim) cancelAnimationFrame(S.anim);
+      const from = S.stage, t0 = performance.now(), dur = matchMedia('(prefers-reduced-motion: reduce)').matches ? 1 : 700 * Math.abs(target - from);
+      const tick = now => { const f = clamp((now - t0) / dur, 0, 1), e = f < 0.5 ? 2 * f * f : 1 - (-2 * f + 2) ** 2 / 2; S.stage = from + (target - from) * e; show(S.stage); if (f < 1) S.anim = requestAnimationFrame(tick); else { S.stage = target; show(target); S.anim = null; } };
+      S.anim = requestAnimationFrame(tick);
+    }
+    const stepLabel = h('div', { class: 'tag' }); stage.append(stepLabel);
+    stage.append(h('div', { class: 'hint' }, 'blue: source X   ·   red: target Y   ·   lines: correspondences'));
+    groupTitle(panel, 'Solve');
+    const r1 = h('div', { class: 'row' }); panel.append(r1);
+    button(r1, 'Run all', () => { if (S.stage >= 4) { S.stage = 0; show(0); } goTo(4); }, true);
+    button(r1, 'Next step', () => goTo(Math.min(4, Math.round(S.stage) + 1)));
+    button(r1, 'Reset', () => { if (S.anim) cancelAnimationFrame(S.anim); S.stage = 0; show(0); });
+    const note = verdict(panel); note.hidden = true;
+    groupTitle(panel, 'Target');
+    const rebuild = () => { makeTarget(); if (S.anim) cancelAnimationFrame(S.anim); S.stage = 0; show(0); };
+    button(panel, 'New random target', () => { S.seed++; rebuild(); });
+    slider(panel, { id: 'pr-noise', label: 'Noise σ', min: 0, max: 0.08, step: 0.002, value: S.noise, f: v => fmt(v, 3), onInput: v => { S.noise = v; rebuild(); } });
+    slider(panel, { id: 'pr-wrong', label: 'Wrong correspondences', min: 0, max: 60, step: 1, value: S.wrong, f: v => v + '%', onInput: v => { S.wrong = v; rebuild(); } });
+    check(panel, { id: 'pr-mirror', label: 'Mirror the target (reflection)', checked: false, onChange: v => { S.mirror = v; rebuild(); } });
+    groupTitle(panel, 'Solver options');
+    check(panel, { id: 'pr-scale', label: 'Estimate scale s', checked: true, onChange: v => { S.scale = v; rebuild(); } });
+    check(panel, { id: 'pr-refl', label: 'Force det(R) = +1', checked: true, onChange: v => { S.noReflect = v; rebuild(); } });
+    check(panel, { id: 'pr-links', label: 'Show correspondences', checked: true, onChange: v => { S.links = v; links.visible = v; } });
+    const rd = readout(panel);
+    makeTarget(); show(0);
+    return () => { if (S.anim) cancelAnimationFrame(S.anim); V.dispose(); };
+  }
+});
+
+/* ───────────── router ───────────── */
+const nav = document.getElementById('nav'), main = document.getElementById('main');
+DEMOS.forEach(d => nav.append(h('a', { href: '#' + d.id, 'data-id': d.id }, d.title, h('small', {}, d.note))));
+let cleanup = null, current = null;
+function show() {
+  const id = (location.hash || '').slice(1); const d = DEMOS.find(x => x.id === id) || DEMOS[0];
+  if (cleanup) { try { cleanup(); } catch (e) { console.error(e); } cleanup = null; }
+  current = d;
+  nav.querySelectorAll('a').forEach(a => a.setAttribute('aria-current', a.dataset.id === d.id ? 'page' : 'false'));
+  const stage = h('div', { class: 'stage', id: 'stage' }), panel = h('aside', { class: 'panel', 'aria-label': 'Controls' });
+  const [pre, em, post] = d.tryText;
+  main.replaceChildren(
+    h('div', { class: 'demo-head' }, h('h2', {}, d.title), h('p', {}, d.lead), h('p', { class: 'try' }, pre, h('b', {}, em), post)),
+    h('div', { class: 'work' }, stage, panel)
+  );
+  try { cleanup = d.mount(stage, panel); } catch (e) { console.error(e); stage.append(h('p', { class: 'err' }, 'This demo could not start: ' + e.message)); }
+}
+addEventListener('hashchange', show);
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change', show);
+new MutationObserver(show).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+show();
+</script>
+
+</body></html>

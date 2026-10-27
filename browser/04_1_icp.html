@@ -1,0 +1,954 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<meta name="claude:viewport-fit-sides" content="cover">
+<title>ICP Lab</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;600&family=Source+Serif+4:opsz,wght@8..60,600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: lab shell — demo list on the left, one live demo at a time (stage + control panel). Tübingen red marks the target and what you can act on; green is the source shape. */
+:root{
+  --bg:#ffffff; --panel:#f5f6f7; --ink:#1d262e; --muted:#5d6872; --line:#e2e5e9;
+  --accent:#a51e37; --accent-ink:#ffffff; --gold:#8f7b3c; --slate:#3e5566; --src:#3f8f3a;
+  --surface:#c9ced4; --canvas:#ffffff; --grid:#eef0f2;
+  --font-body:'Source Sans 3',system-ui,-apple-system,'Segoe UI',sans-serif;
+  --font-head:'Source Serif 4',Georgia,'Times New Roman',serif;
+  --font-mono:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#121519; --panel:#1a1f24; --ink:#e6eaee; --muted:#9aa5af; --line:#2a3138;
+  --accent:#e0566f; --accent-ink:#121519; --gold:#d4c28a; --slate:#9fb6c8; --src:#7cc174;
+  --surface:#8d959d; --canvas:#121519; --grid:#1d2329; color-scheme:dark;
+}}
+:root[data-theme="dark"]{
+  --bg:#121519; --panel:#1a1f24; --ink:#e6eaee; --muted:#9aa5af; --line:#2a3138;
+  --accent:#e0566f; --accent-ink:#121519; --gold:#d4c28a; --slate:#9fb6c8; --src:#7cc174;
+  --surface:#8d959d; --canvas:#121519; --grid:#1d2329; color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{background:var(--bg);color:var(--ink);font-family:var(--font-body);font-size:16px;line-height:1.5;-webkit-font-smoothing:antialiased}
+.top{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;padding-block:14px;padding-left:max(18px,env(safe-area-inset-left,0px));padding-right:max(18px,env(safe-area-inset-right,0px));border-bottom:1px solid var(--line)}
+.top h1{font-family:var(--font-head);font-weight:600;font-size:1.3rem;margin:0}
+.top .sub{color:var(--muted);font-size:.9rem}
+.shell{display:grid;grid-template-columns:250px minmax(0,1fr);min-height:calc(100% - 56px)}
+nav.demos{border-right:1px solid var(--line);padding-block:12px;padding-left:max(10px,env(safe-area-inset-left,0px));padding-right:10px}
+nav.demos a{display:block;padding:9px 12px;border-radius:8px;color:var(--ink);text-decoration:none;font-size:.95rem;line-height:1.3}
+nav.demos a small{display:block;color:var(--muted);font-size:.78rem;margin-top:2px}
+nav.demos a:hover{background:var(--panel)}
+nav.demos a[aria-current="page"]{background:var(--panel);color:var(--accent);font-weight:600}
+nav.demos a[aria-current="page"] small{font-weight:400}
+main{padding-block:18px 28px;padding-left:22px;padding-right:max(18px,env(safe-area-inset-right,0px));min-width:0}
+.demo-head{max-width:78ch}
+.demo-head h2{font-family:var(--font-head);font-weight:600;font-size:1.65rem;line-height:1.2;margin:0;text-wrap:balance}
+.demo-head p{margin:.4rem 0 0;color:var(--muted)}
+.demo-head p.try{color:var(--ink)}
+.demo-head p.try b{color:var(--ink);font-weight:600}
+.work{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:18px;margin-top:16px;align-items:start}
+.stage{position:relative;background:var(--canvas);border:1px solid var(--line);border-radius:12px;overflow:hidden;height:min(68vh,620px);min-height:340px;touch-action:none}
+.stage canvas{display:block}
+.stage.split{display:grid;grid-template-columns:1fr 1fr}
+.stage.split>div{position:relative;min-width:0;min-height:0}
+.stage.split>div+div{border-left:1px solid var(--line)}
+.stage.stack{display:grid;grid-template-rows:66fr 34fr}
+.stage.stack>div{position:relative;min-height:0;min-width:0}
+.stage.stack>div+div{border-top:1px solid var(--line)}
+.sub2{display:grid;grid-template-rows:62fr 38fr}
+.sub2>div{position:relative;min-height:0;min-width:0}
+.sub2>div+div{border-top:1px solid var(--line)}
+.stage .tag{position:absolute;left:12px;top:10px;font-size:.78rem;color:var(--muted);background:color-mix(in srgb,var(--canvas) 85%,transparent);padding:2px 8px;border-radius:6px;pointer-events:none;z-index:2;font-variant-numeric:tabular-nums}
+.stage .hint{position:absolute;right:12px;bottom:10px;font-size:.78rem;color:var(--muted);pointer-events:none;z-index:2;background:color-mix(in srgb,var(--canvas) 85%,transparent);padding:1px 6px;border-radius:6px}
+.stage .lbl3{position:absolute;font-family:var(--font-head);font-style:italic;font-size:.95rem;color:var(--ink);pointer-events:none;transform:translate(-50%,-140%);white-space:nowrap;z-index:2}
+.fillchart{position:absolute;inset:0;width:100%;height:100%}
+.chart{width:100%;display:block;background:var(--canvas);border:1px solid var(--line);border-radius:8px}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px;display:flex;flex-direction:column;gap:14px;min-width:0}
+.ctl label{display:flex;justify-content:space-between;gap:8px;font-size:.88rem;color:var(--ink);margin-bottom:4px}
+.ctl label output{font-family:var(--font-mono);font-size:.8rem;color:var(--muted)}
+input[type=range]{width:100%;accent-color:var(--accent)}
+.seg{display:flex;flex-wrap:wrap;gap:6px}
+.seg button,.btn{font:inherit;font-size:.86rem;border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:7px;padding:6px 10px;cursor:pointer}
+.seg button[aria-pressed="true"]{border-color:var(--accent);color:var(--accent);font-weight:600}
+.btn:hover,.seg button:hover{border-color:var(--accent)}
+.btn:disabled{opacity:.45;cursor:default;border-color:var(--line)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);font-weight:600}
+.btn.primary:hover{filter:brightness(1.08)}
+.row{display:flex;gap:8px;flex-wrap:wrap}
+.chk{display:flex;align-items:center;gap:8px;font-size:.88rem;cursor:pointer}
+.chk input{accent-color:var(--accent);width:16px;height:16px}
+.group-title{font-size:.72rem;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin:2px 0 -6px}
+.read{font-family:var(--font-mono);font-size:.8rem;background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:10px 12px;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 12px;overflow-x:auto;font-variant-numeric:tabular-nums}
+.read dt{color:var(--muted);min-width:0}
+.read dd{margin:0;color:var(--ink);white-space:pre;text-align:right}
+.read dd.full{text-align:left;white-space:pre-wrap;overflow-wrap:anywhere}
+.read .full{grid-column:1/-1}
+.read dd.full{margin:0 0 4px 10px}
+.verdict{font-size:.92rem;padding:8px 12px;border-radius:8px;background:var(--bg);border:1px solid var(--line)}
+.note{margin:0;font-size:.86rem;color:var(--muted)}
+.legend{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:.8rem;color:var(--muted)}
+.legend i{display:inline-block;width:18px;height:0;border-top:2.5px solid currentColor;vertical-align:middle;margin-right:6px}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.err{padding:20px;color:var(--muted)}
+@media (max-width:980px){.work{grid-template-columns:minmax(0,1fr)}}
+@media (max-width:760px){
+  .shell{grid-template-columns:minmax(0,1fr)}
+  nav.demos{border-right:none;border-bottom:1px solid var(--line);display:flex;gap:6px;overflow-x:auto;padding-right:max(10px,env(safe-area-inset-right,0px))}
+  nav.demos a{white-space:nowrap;flex:0 0 auto}
+  nav.demos a small{display:none}
+  main{padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+  .stage{height:60vh}
+  .stage.split{grid-template-columns:1fr;grid-template-rows:1fr 1fr;height:92vh}
+  .stage.split>div+div{border-left:none;border-top:1px solid var(--line)}
+}
+@media (prefers-reduced-motion:reduce){*{scroll-behavior:auto}}
+</style>
+
+<header class="top">
+  <h1>ICP Lab</h1>
+  <span class="sub">Virtual Humans · Lecture 4.1 · interactive companions to the slides</span>
+</header>
+<div class="shell">
+  <nav class="demos" id="nav" aria-label="Demos"></nav>
+  <main id="main"><p class="err">Loading the 3D engine…</p></main>
+</div>
+
+<script type="importmap">
+{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"}}
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+/* ───────────── helpers ───────────── */
+const tok = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+function h(tag, attrs = {}, ...kids) {
+  const e = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs)) {
+    if (k === 'class') e.className = v;
+    else if (k.startsWith('on') && typeof v === 'function') e.addEventListener(k.slice(2), v);
+    else if (v !== false && v != null) e.setAttribute(k, v === true ? '' : v);
+  }
+  for (const k of kids.flat()) { if (k == null) continue; e.append(k.nodeType ? k : document.createTextNode(String(k))); }
+  return e;
+}
+const fmt = (v, d = 2) => { if (!Number.isFinite(v)) return '—'; const x = Math.abs(v) < 0.5 * Math.pow(10, -d) ? 0 : v; return (x < 0 ? '−' : '') + Math.abs(x).toFixed(d); };
+const clamp = (x, a, b) => Math.min(b, Math.max(a, x));
+const deg = r => r * 180 / Math.PI, rad = d => d * Math.PI / 180;
+const wrapDeg = d => ((d + 180) % 360 + 360) % 360 - 180;
+const sup = n => String(n).split('').map(c => '⁰¹²³⁴⁵⁶⁷⁸⁹'[+c]).join('');
+const reduced = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+function slider(panel, { id, label, min, max, step, value, f = v => v, onInput }) {
+  const out = h('output', { for: id }, f(value));
+  const inp = h('input', { type: 'range', id, min, max, step, value });
+  inp.addEventListener('input', () => { const v = parseFloat(inp.value); out.textContent = f(v); onInput(v); });
+  const wrap = h('div', { class: 'ctl' }, h('label', { for: id }, h('span', {}, label), out), inp);
+  panel.append(wrap);
+  return { wrap, set(v) { inp.value = v; out.textContent = f(v); }, get value() { return parseFloat(inp.value); } };
+}
+function seg(panel, { id, label, options, value, onChange }) {
+  const box = h('div', { class: 'seg', role: 'group', 'aria-label': label, id });
+  const btns = options.map(([val, text]) => {
+    const b = h('button', { type: 'button', 'aria-pressed': String(val === value) }, text);
+    b.addEventListener('click', () => { btns.forEach(x => x.setAttribute('aria-pressed', 'false')); b.setAttribute('aria-pressed', 'true'); onChange(val); });
+    box.append(b); return b;
+  });
+  const wrap = h('div', { class: 'ctl' }, label ? h('label', {}, h('span', {}, label)) : null, box);
+  panel.append(wrap);
+  return { wrap, set(val) { btns.forEach((b, i) => b.setAttribute('aria-pressed', String(options[i][0] === val))); } };
+}
+function check(panel, { id, label, checked, onChange }) {
+  const inp = h('input', { type: 'checkbox', id }); inp.checked = !!checked;
+  inp.addEventListener('change', () => onChange(inp.checked));
+  const wrap = h('label', { class: 'chk', for: id }, inp, label);
+  panel.append(wrap); return { wrap, input: inp };
+}
+function button(parent, label, onClick, primary = false) {
+  const b = h('button', { type: 'button', class: 'btn' + (primary ? ' primary' : '') }, label);
+  b.addEventListener('click', onClick); parent.append(b); return b;
+}
+function readout(panel) {
+  const dl = h('dl', { class: 'read' }); panel.append(dl);
+  return { el: dl, set(rows) { dl.replaceChildren(...rows.flatMap(([k, v]) => { const long = String(v).includes('\n') || String(v).length > 22; return [h('dt', { class: long ? 'full' : null }, k), h('dd', { class: long ? 'full' : null }, v)]; })); } };
+}
+function verdict(panel) { const d = h('div', { class: 'verdict' }); panel.append(d); return d; }
+function groupTitle(panel, t) { panel.append(h('div', { class: 'group-title' }, t)); }
+function note(panel, t) { const p = h('p', { class: 'note' }, t); panel.append(p); return p; }
+function legend(panel, items) { panel.append(h('div', { class: 'legend' }, ...items.map(([c, t, dash]) => h('span', {}, h('i', { style: `color:${c};${dash ? 'border-top-style:dashed' : ''}` }), t)))); }
+
+/* three.js viewer with orbit controls, z-up like the slides */
+function viewer(stage, { cam = [3.5, -4.5, 2.8], target = [0, 0, 0] } = {}) {
+  const renderer = new THREE.WebGLRenderer({ antialias: true });
+  renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+  stage.append(renderer.domElement);
+  const scene = new THREE.Scene();
+  scene.background = new THREE.Color(tok('--canvas'));
+  const camera = new THREE.PerspectiveCamera(38, 1, 0.01, 200);
+  camera.up.set(0, 0, 1); camera.position.set(...cam);
+  const controls = new OrbitControls(camera, renderer.domElement);
+  controls.target.set(...target); controls.enableDamping = true; controls.update();
+  scene.add(new THREE.HemisphereLight(0xffffff, 0x7d838a, 1.5));
+  const d1 = new THREE.DirectionalLight(0xffffff, 1.7); d1.position.set(3, -4, 6); scene.add(d1);
+  const d2 = new THREE.DirectionalLight(0xffffff, 0.45); d2.position.set(-5, 3, -2); scene.add(d2);
+  const ro = new ResizeObserver(() => {
+    const w = Math.max(1, stage.clientWidth), hh = Math.max(1, stage.clientHeight);
+    renderer.setSize(w, hh, false); renderer.domElement.style.width = '100%'; renderer.domElement.style.height = '100%';
+    camera.aspect = w / hh; camera.zoom = Math.min(1, (w / hh) * 1.25); camera.updateProjectionMatrix();
+  });
+  ro.observe(stage);
+  let raf = 0, frame = null;
+  const loop = () => { raf = requestAnimationFrame(loop); controls.update(); if (frame) frame(); renderer.render(scene, camera); };
+  loop();
+  return {
+    renderer, scene, camera, controls,
+    set onFrame(f) { frame = f; },
+    dispose() {
+      cancelAnimationFrame(raf); ro.disconnect(); controls.dispose();
+      scene.traverse(o => { if (o.geometry) o.geometry.dispose(); if (o.material) [].concat(o.material).forEach(m => m.dispose()); });
+      renderer.dispose(); renderer.domElement.remove();
+    }
+  };
+}
+/* 2D canvas with a world→screen mapping that keeps aspect ratio */
+function canvas2d(host, draw, extent = { x0: -2, x1: 2, y0: -2, y1: 2 }, stretch = false) {
+  const c = h('canvas'); host.append(c);
+  const ctx = c.getContext('2d');
+  const S = { W: 0, H: 0, k: 1, ox: 0, oy: 0 };
+  function layout() {
+    const r = host.getBoundingClientRect(); const dpr = Math.min(devicePixelRatio, 2);
+    S.W = r.width; S.H = r.height;
+    c.width = Math.max(1, Math.round(S.W * dpr)); c.height = Math.max(1, Math.round(S.H * dpr));
+    c.style.width = S.W + 'px'; c.style.height = S.H + 'px'; ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const ew = extent.x1 - extent.x0, eh = extent.y1 - extent.y0, pad = 18;
+    S.k = Math.min((S.W - 2 * pad) / ew, (S.H - 2 * pad) / eh); S.ky = S.k;
+    if (stretch) { S.k = (S.W - 2 * pad) / ew; S.ky = (S.H - 2 * pad) / eh; }
+    S.ox = (S.W - S.k * ew) / 2 - S.k * extent.x0; S.oy = (S.H + S.ky * eh) / 2 + S.ky * extent.y0;
+  }
+  const api = {
+    canvas: c, ctx, S,
+    sx: x => S.ox + S.k * x, sy: y => S.oy - S.ky * y,
+    wx: px => (px - S.ox) / S.k, wy: py => (S.oy - py) / S.ky,
+    redraw() { if (S.W) { ctx.clearRect(0, 0, S.W, S.H); draw(api); } },
+    setExtent(e) { Object.assign(extent, e); if (S.W) { layout(); api.redraw(); } },
+    dispose() { ro.disconnect(); c.remove(); }
+  };
+  const ro = new ResizeObserver(() => { layout(); api.redraw(); }); ro.observe(host);
+  return api;
+}
+const evPos = (e, el) => { const r = el.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; };
+function dot(ctx, x, y, r, fill, stroke, lw = 1.5) { ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); if (fill) { ctx.fillStyle = fill; ctx.fill(); } if (stroke) { ctx.lineWidth = lw; ctx.strokeStyle = stroke; ctx.stroke(); } }
+function arrow(ctx, x0, y0, x1, y1, color, lw = 2, L = 8) {
+  const a = Math.atan2(y1 - y0, x1 - x0);
+  ctx.strokeStyle = color; ctx.fillStyle = color; ctx.lineWidth = lw;
+  ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); ctx.stroke();
+  if (Math.hypot(x1 - x0, y1 - y0) < L * 1.2) return;
+  ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x1 - L * Math.cos(a - 0.4), y1 - L * Math.sin(a - 0.4)); ctx.lineTo(x1 - L * Math.cos(a + 0.4), y1 - L * Math.sin(a + 0.4)); ctx.closePath(); ctx.fill();
+}
+function path(cv, P, color, lw = 2, closed = true, dash = null, alpha = 1) {
+  const { ctx } = cv; ctx.save(); ctx.globalAlpha = alpha; ctx.strokeStyle = color; ctx.lineWidth = lw; ctx.lineJoin = 'round'; ctx.setLineDash(dash || []);
+  ctx.beginPath(); P.forEach((p, i) => { const x = cv.sx(p[0]), y = cv.sy(p[1]); i ? ctx.lineTo(x, y) : ctx.moveTo(x, y); }); if (closed) ctx.closePath(); ctx.stroke(); ctx.restore();
+}
+function pairLines(cv, A, B, color, every = 1, lw = 1, alpha = 0.75) {
+  const { ctx } = cv; ctx.save(); ctx.globalAlpha = alpha; ctx.strokeStyle = color; ctx.lineWidth = lw; ctx.beginPath();
+  for (let k = 0; k < A.length; k += every) { ctx.moveTo(cv.sx(A[k][0]), cv.sy(A[k][1])); ctx.lineTo(cv.sx(B[k][0]), cv.sy(B[k][1])); }
+  ctx.stroke(); ctx.restore();
+}
+function text(cv, s, x, y, color, { align = 'left', size = 15, italic = true, base = 'alphabetic' } = {}) {
+  const { ctx } = cv; ctx.fillStyle = color; ctx.textAlign = align; ctx.textBaseline = base; ctx.font = `${italic ? 'italic ' : ''}${size}px ${tok('--font-head')}`; ctx.fillText(s, x, y);
+}
+
+/* line / scatter chart drawn from theme tokens */
+function makeChart(host, { fill = false, height = 128 } = {}) {
+  const c = h('canvas', { class: fill ? 'fillchart' : 'chart' }); host.append(c);
+  const ctx = c.getContext('2d'); let last = null; const M = {};
+  function tickLabel(k) { const v = Math.pow(10, k); return k >= 0 ? String(v) : k >= -3 ? v.toFixed(-k) : '1e' + k; }
+  function draw(series, o) {
+    if (series) last = [series, o || {}]; if (!last) return; [series, o] = last;
+    const W = Math.max(60, fill ? host.clientWidth : c.clientWidth || host.clientWidth), H = fill ? Math.max(60, host.clientHeight) : height, dpr = Math.min(devicePixelRatio, 2);
+    c.width = Math.round(W * dpr); c.height = Math.round(H * dpr); if (!fill) c.style.height = H + 'px';
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, W, H);
+    const L = o.left ?? (o.ylabel ? 60 : 46), R = 12, T = 12, B = o.xlabel ? 34 : 20;
+    const xs = [], ys = [];
+    series.forEach(s => s.data.forEach((y, i) => { if (Number.isFinite(y)) { xs.push(s.x ? s.x[i] : i); ys.push(y); } }));
+    let x0 = o.xmin ?? (xs.length ? Math.min(...xs) : 0), x1 = o.xmax ?? (xs.length ? Math.max(...xs) : 1); if (x1 <= x0) x1 = x0 + 1;
+    let y0, y1;
+    if (o.log) { const pos = ys.filter(v => v > 0); const lo = Math.max(o.floor ?? 1e-6, pos.length ? Math.min(...pos) : 1e-3); y0 = Math.floor(Math.log10(lo)); y1 = Math.ceil(Math.log10(Math.max(lo * 10, ...(pos.length ? pos : [1])))); if (o.ytop != null) y1 = Math.max(y1, Math.ceil(Math.log10(o.ytop))); }
+    else { y0 = o.ymin ?? 0; y1 = o.ymax ?? ((ys.length ? Math.max(...ys) : 1) * 1.1); if (y1 <= y0) y1 = y0 + 1; }
+    const X = x => L + (W - L - R) * (x - x0) / (x1 - x0);
+    const Y = y => { const v = o.log ? Math.log10(Math.max(y, Math.pow(10, y0))) : y; return T + (H - T - B) * (1 - (v - y0) / (y1 - y0)); };
+    Object.assign(M, { L, R, T, B, W, H, x0, x1, X });
+    ctx.font = `11px ${tok('--font-mono')}`; ctx.lineWidth = 1;
+    if (o.vband) { ctx.fillStyle = tok('--grid'); o.vband.forEach(([a, b]) => ctx.fillRect(X(a), T, X(b) - X(a), H - T - B)); }
+    const ticks = o.log ? Array.from({ length: y1 - y0 + 1 }, (_, i) => y0 + i) : [y0, (y0 + y1) / 2, y1];
+    ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+    ticks.forEach(k => { const yy = o.log ? Y(Math.pow(10, k)) : Y(k); ctx.strokeStyle = tok('--grid'); ctx.beginPath(); ctx.moveTo(L, yy); ctx.lineTo(W - R, yy); ctx.stroke(); ctx.fillStyle = tok('--muted'); ctx.fillText(o.log ? tickLabel(k) : (o.yfmt ? o.yfmt(k) : fmt(k, 2)), L - 6, yy); });
+    ctx.strokeStyle = tok('--line'); ctx.beginPath(); ctx.moveTo(L, T); ctx.lineTo(L, H - B); ctx.lineTo(W - R, H - B); ctx.stroke();
+    ctx.textAlign = 'center'; ctx.textBaseline = 'top'; ctx.fillStyle = tok('--muted');
+    (o.xticks || [x0, x1]).forEach(xv => ctx.fillText(o.xfmt ? o.xfmt(xv) : String(Math.round(xv)), X(xv), H - B + 4));
+    if (o.xlabel) { ctx.fillText(o.xlabel, (L + W - R) / 2, H - 15); }
+    if (o.ylabel) { ctx.save(); ctx.translate(11, (T + H - B) / 2); ctx.rotate(-Math.PI / 2); ctx.textBaseline = 'middle'; ctx.fillText(o.ylabel, 0, 0); ctx.restore(); }
+    series.forEach(s => {
+      const col = s.color; ctx.strokeStyle = col; ctx.fillStyle = col; ctx.lineWidth = s.lw || 2; ctx.setLineDash(s.dash || []);
+      if (s.dots) { s.data.forEach((y, i) => { if (!Number.isFinite(y)) return; dot(ctx, X(s.x ? s.x[i] : i), Y(y), s.r || 3.4, s.colors ? s.colors[i] : col); }); return; }
+      ctx.beginPath(); let started = false;
+      s.data.forEach((y, i) => { if (!Number.isFinite(y)) { started = false; return; } const px = X(s.x ? s.x[i] : i), py = Y(y); started ? ctx.lineTo(px, py) : ctx.moveTo(px, py); started = true; });
+      ctx.stroke(); ctx.setLineDash([]);
+      const n = s.data.length - 1; if (n >= 0 && Number.isFinite(s.data[n]) && s.end !== false) dot(ctx, X(s.x ? s.x[n] : n), Y(s.data[n]), 3, col);
+    });
+    if (o.marker) { const { x, y } = o.marker; dot(ctx, X(x), Y(y), 7, null, tok('--ink'), 2); }
+  }
+  const ro = new ResizeObserver(() => draw()); ro.observe(fill ? host : c);
+  return { canvas: c, draw, dataX(px) { return M.x0 + (px - M.L) * (M.x1 - M.x0) / (M.W - M.L - M.R); }, dispose() { ro.disconnect(); c.remove(); } };
+}
+
+/* seeded random numbers so every student sees the same figure */
+function rng(seed) { return () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+const gauss = R => { let u = 0; for (let k = 0; k < 6; k++) u += R(); return (u - 3) / Math.sqrt(0.5); };
+
+/* ───────────── 2D shapes from the slides (source X, target Y) ───────────── */
+const CURVES = {"X":[[-2.76,-1.458],[-2.817,-1.458],[-2.873,-1.458],[-2.928,-1.453],[-2.983,-1.448],[-3.033,-1.433],[-3.084,-1.417],[-3.132,-1.396],[-3.178,-1.37],[-3.221,-1.337],[-3.257,-1.295],[-3.288,-1.251],[-3.312,-1.205],[-3.328,-1.154],[-3.337,-1.102],[-3.337,-1.045],[-3.337,-0.988],[-3.333,-0.933],[-3.322,-0.881],[-3.312,-0.828],[-3.302,-0.776],[-3.292,-0.723],[-3.288,-0.668],[-3.282,-0.614],[-3.282,-0.557],[-3.288,-0.502],[-3.298,-0.45],[-3.32,-0.402],[-3.35,-0.358],[-3.39,-0.318],[-3.431,-0.281],[-3.474,-0.248],[-3.52,-0.222],[-3.566,-0.196],[-3.612,-0.17],[-3.658,-0.143],[-3.701,-0.111],[-3.743,-0.075],[-3.772,-0.03],[-3.792,0.018],[-3.802,0.071],[-3.797,0.126],[-3.782,0.176],[-3.756,0.222],[-3.718,0.26],[-3.672,0.288],[-3.624,0.308],[-3.569,0.313],[-3.515,0.317],[-3.462,0.308],[-3.411,0.292],[-3.364,0.271],[-3.318,0.245],[-3.273,0.216],[-3.23,0.183],[-3.187,0.149],[-3.144,0.116],[-3.101,0.083],[-3.058,0.05],[-3.013,0.021],[-2.967,-0.005],[-2.92,-0.028],[-2.869,-0.042],[-2.815,-0.048],[-2.76,-0.053],[-2.705,-0.047],[-2.655,-0.033],[-2.606,-0.013],[-2.561,0.016],[-2.52,0.053],[-2.483,0.094],[-2.454,0.139],[-2.435,0.188],[-2.428,0.241],[-2.428,0.298],[-2.445,0.347],[-2.471,0.393],[-2.508,0.435],[-2.551,0.467],[-2.597,0.492],[-2.644,0.517],[-2.692,0.538],[-2.739,0.561],[-2.785,0.587],[-2.826,0.624],[-2.853,0.67],[-2.868,0.72],[-2.873,0.775],[-2.861,0.827],[-2.838,0.874],[-2.801,0.916],[-2.757,0.945],[-2.71,0.968],[-2.661,0.987],[-2.607,0.995],[-2.552,0.998],[-2.495,0.997],[-2.442,0.988],[-2.39,0.977],[-2.339,0.962],[-2.29,0.943],[-2.242,0.924],[-2.194,0.903],[-2.145,0.882],[-2.098,0.86],[-2.049,0.841],[-1.998,0.826],[-1.947,0.812],[-1.893,0.808],[-1.836,0.808],[-1.784,0.819],[-1.738,0.845],[-1.698,0.885],[-1.673,0.931],[-1.667,0.986],[-1.683,1.036],[-1.716,1.079],[-1.757,1.118],[-1.801,1.148],[-1.846,1.178],[-1.889,1.211],[-1.932,1.244],[-1.965,1.287],[-1.984,1.336],[-1.992,1.389],[-1.987,1.444],[-1.968,1.492],[-1.936,1.536],[-1.895,1.573],[-1.848,1.597],[-1.798,1.614],[-1.747,1.626],[-1.691,1.627],[-1.636,1.623],[-1.583,1.613],[-1.533,1.596],[-1.486,1.573],[-1.44,1.547],[-1.396,1.518],[-1.351,1.488],[-1.307,1.458],[-1.263,1.427],[-1.218,1.4],[-1.17,1.377],[-1.122,1.357],[-1.069,1.347],[-1.016,1.337],[-0.96,1.337],[-0.903,1.337],[-0.848,1.342],[-0.794,1.347],[-0.739,1.352],[-0.684,1.357],[-0.63,1.363],[-0.575,1.357],[-0.52,1.352],[-0.468,1.342],[-0.417,1.328],[-0.369,1.307],[-0.322,1.284],[-0.277,1.255],[-0.236,1.218],[-0.197,1.18],[-0.162,1.138],[-0.133,1.093],[-0.109,1.046],[-0.088,0.999],[-0.068,0.95],[-0.053,0.9],[-0.042,0.847],[-0.032,0.794],[-0.027,0.74],[-0.027,0.683],[-0.032,0.628],[-0.037,0.574],[-0.047,0.521],[-0.058,0.468],[-0.072,0.418],[-0.089,0.368],[-0.112,0.321],[-0.134,0.273],[-0.16,0.227],[-0.19,0.183],[-0.223,0.14],[-0.259,0.098],[-0.301,0.062],[-0.343,0.025],[-0.387,-0.005],[-0.432,-0.033],[-0.479,-0.058],[-0.526,-0.079],[-0.574,-0.101],[-0.624,-0.118],[-0.672,-0.138],[-0.723,-0.153],[-0.773,-0.167],[-0.824,-0.183],[-0.873,-0.201],[-0.923,-0.216],[-0.973,-0.232],[-1.023,-0.25],[-1.072,-0.269],[-1.119,-0.292],[-1.167,-0.314],[-1.213,-0.34],[-1.257,-0.37],[-1.3,-0.403],[-1.342,-0.439],[-1.382,-0.479],[-1.422,-0.519],[-1.458,-0.561],[-1.495,-0.603],[-1.532,-0.644],[-1.565,-0.687],[-1.598,-0.73],[-1.634,-0.772],[-1.671,-0.813],[-1.707,-0.855],[-1.747,-0.895],[-1.784,-0.937],[-1.824,-0.977],[-1.866,-1.013],[-1.907,-1.05],[-1.949,-1.087],[-1.991,-1.123],[-2.035,-1.153],[-2.078,-1.186],[-2.123,-1.215],[-2.167,-1.245],[-2.213,-1.273],[-2.259,-1.298],[-2.305,-1.323],[-2.353,-1.345],[-2.401,-1.364],[-2.45,-1.383],[-2.499,-1.402],[-2.55,-1.417],[-2.602,-1.427],[-2.655,-1.438],[-2.707,-1.448]],"Y":[[2.67,-1.073],[2.636,-1.073],[2.605,-1.067],[2.574,-1.062],[2.544,-1.053],[2.516,-1.039],[2.49,-1.022],[2.464,-1.002],[2.439,-0.982],[2.416,-0.958],[2.392,-0.934],[2.368,-0.911],[2.344,-0.888],[2.319,-0.867],[2.294,-0.848],[2.268,-0.83],[2.239,-0.817],[2.21,-0.808],[2.176,-0.808],[2.143,-0.808],[2.113,-0.817],[2.084,-0.828],[2.056,-0.841],[2.028,-0.854],[2.0,-0.868],[1.972,-0.881],[1.943,-0.893],[1.914,-0.903],[1.882,-0.906],[1.851,-0.903],[1.821,-0.894],[1.793,-0.881],[1.769,-0.857],[1.756,-0.829],[1.748,-0.799],[1.748,-0.765],[1.75,-0.733],[1.759,-0.703],[1.773,-0.675],[1.793,-0.65],[1.818,-0.63],[1.844,-0.613],[1.872,-0.598],[1.901,-0.587],[1.93,-0.577],[1.96,-0.567],[1.989,-0.558],[2.018,-0.547],[2.048,-0.538],[2.077,-0.528],[2.105,-0.513],[2.131,-0.496],[2.156,-0.476],[2.18,-0.452],[2.203,-0.428],[2.221,-0.402],[2.232,-0.373],[2.242,-0.344],[2.248,-0.312],[2.243,-0.281],[2.238,-0.25],[2.228,-0.22],[2.211,-0.194],[2.187,-0.17],[2.162,-0.15],[2.134,-0.137],[2.104,-0.127],[2.072,-0.131],[2.041,-0.138],[2.014,-0.153],[1.987,-0.167],[1.96,-0.183],[1.933,-0.2],[1.905,-0.213],[1.875,-0.223],[1.844,-0.228],[1.812,-0.223],[1.784,-0.211],[1.758,-0.191],[1.742,-0.164],[1.732,-0.135],[1.728,-0.103],[1.728,-0.07],[1.734,-0.039],[1.747,-0.011],[1.758,0.018],[1.777,0.044],[1.797,0.069],[1.819,0.091],[1.842,0.115],[1.868,0.132],[1.894,0.151],[1.921,0.168],[1.947,0.185],[1.974,0.201],[2.001,0.218],[2.026,0.238],[2.049,0.262],[2.073,0.286],[2.092,0.311],[2.106,0.339],[2.113,0.37],[2.11,0.402],[2.094,0.429],[2.07,0.453],[2.042,0.467],[2.009,0.467],[1.977,0.462],[1.949,0.451],[1.92,0.438],[1.891,0.427],[1.862,0.417],[1.83,0.413],[1.799,0.417],[1.77,0.427],[1.743,0.444],[1.723,0.47],[1.713,0.499],[1.707,0.53],[1.707,0.564],[1.713,0.595],[1.723,0.625],[1.738,0.652],[1.755,0.678],[1.779,0.702],[1.804,0.722],[1.832,0.737],[1.859,0.752],[1.888,0.762],[1.918,0.772],[1.946,0.784],[1.975,0.797],[2.003,0.81],[2.029,0.827],[2.056,0.843],[2.08,0.867],[2.103,0.891],[2.123,0.916],[2.14,0.943],[2.157,0.969],[2.172,0.996],[2.187,1.024],[2.203,1.051],[2.217,1.078],[2.233,1.105],[2.253,1.131],[2.277,1.154],[2.301,1.177],[2.327,1.195],[2.355,1.208],[2.383,1.221],[2.413,1.23],[2.443,1.238],[2.475,1.242],[2.508,1.243],[2.54,1.238],[2.572,1.235],[2.603,1.227],[2.633,1.219],[2.663,1.21],[2.691,1.198],[2.719,1.184],[2.746,1.167],[2.772,1.15],[2.797,1.13],[2.822,1.11],[2.846,1.086],[2.866,1.061],[2.883,1.035],[2.902,1.009],[2.916,0.981],[2.929,0.953],[2.942,0.925],[2.953,0.896],[2.958,0.865],[2.967,0.835],[2.973,0.804],[2.973,0.77],[2.973,0.736],[2.967,0.705],[2.965,0.672],[2.959,0.641],[2.953,0.611],[2.947,0.579],[2.938,0.55],[2.928,0.52],[2.918,0.491],[2.909,0.461],[2.902,0.43],[2.893,0.401],[2.883,0.371],[2.877,0.34],[2.873,0.308],[2.867,0.277],[2.863,0.245],[2.863,0.212],[2.863,0.179],[2.867,0.147],[2.873,0.115],[2.878,0.084],[2.887,0.055],[2.897,0.025],[2.903,-0.006],[2.912,-0.036],[2.922,-0.065],[2.932,-0.095],[2.938,-0.126],[2.947,-0.155],[2.953,-0.187],[2.96,-0.217],[2.967,-0.247],[2.973,-0.279],[2.978,-0.31],[2.982,-0.342],[2.982,-0.375],[2.988,-0.407],[2.988,-0.44],[2.988,-0.474],[2.988,-0.507],[2.988,-0.541],[2.988,-0.574],[2.982,-0.606],[2.978,-0.637],[2.973,-0.669],[2.967,-0.7],[2.958,-0.73],[2.952,-0.761],[2.942,-0.79],[2.929,-0.819],[2.918,-0.847],[2.903,-0.875],[2.887,-0.902],[2.873,-0.929],[2.853,-0.955],[2.833,-0.98],[2.809,-1.004],[2.784,-1.024],[2.757,-1.04],[2.729,-1.053],[2.7,-1.063]]};
+const X2 = CURVES.X, Y2 = CURVES.Y;
+const EXT = { x0: -4.15, x1: 3.45, y0: -1.95, y1: 2.0 };
+const EXT_C = { x0: -0.1, x1: 4.8, y0: -2.35, y1: 2.35 }; // view around the target once x̄ is moved onto ȳ
+const extFor = init => ({ ...(init === 'centroid' ? EXT_C : EXT) });
+const cen2 = P => { let x = 0, y = 0; for (const p of P) { x += p[0]; y += p[1]; } return [x / P.length, y / P.length]; };
+const MX = cen2(X2), MY = cen2(Y2);
+/* f = {θ, s, t}: f(x) = s R(θ) x + t */
+function F2(f, p) { const c = Math.cos(f.th), s = Math.sin(f.th); return [f.s * (c * p[0] - s * p[1]) + f.t[0], f.s * (s * p[0] + c * p[1]) + f.t[1]]; }
+const map2 = (f, P) => P.map(p => F2(f, p));
+/* f⁰: rotate by θ₀ about x̄, then either keep it in place or move x̄ onto ȳ (R = I, t = ȳ − x̄ when θ₀ = 0) */
+function f0(kind, th0, X = X2, Y = Y2) {
+  const mx = cen2(X), my = cen2(Y), c = Math.cos(th0), s = Math.sin(th0);
+  const base = kind === 'centroid' ? my : mx;
+  return { th: th0, s: 1, t: [base[0] - (c * mx[0] - s * mx[1]), base[1] - (s * mx[0] + c * mx[1])] };
+}
+/* Procrustes in 2D: argmin Σ‖sRaᵢ + t − bᵢ‖² */
+function proc2(A, B, scale = true) {
+  const ma = cen2(A), mb = cen2(B); let h00 = 0, h01 = 0, h10 = 0, h11 = 0, na = 0;
+  for (let i = 0; i < A.length; i++) { const ax = A[i][0] - ma[0], ay = A[i][1] - ma[1], bx = B[i][0] - mb[0], by = B[i][1] - mb[1]; h00 += bx * ax; h01 += bx * ay; h10 += by * ax; h11 += by * ay; na += ax * ax + ay * ay; }
+  const th = Math.atan2(h10 - h01, h00 + h11), c = Math.cos(th), s = Math.sin(th);
+  const sc = scale ? Math.max(1e-6, (c * (h00 + h11) + s * (h10 - h01)) / na) : 1;
+  return { th, s: sc, t: [mb[0] - sc * (c * ma[0] - s * ma[1]), mb[1] - sc * (s * ma[0] + c * ma[1])] };
+}
+function nn2(P, q) { let bi = 0, bd = Infinity; for (let i = 0; i < P.length; i++) { const dx = P[i][0] - q[0], dy = P[i][1] - q[1], d = dx * dx + dy * dy; if (d < bd) { bd = d; bi = i; } } return [bi, bd]; }
+/* closest-point pairs; 't2s' = for every target point yᵢ the closest transformed source point (the lecture's E) */
+function corr2(f, X, Y, dir = 't2s') {
+  const FX = map2(f, X), si = [], ti = []; let E = 0;
+  if (dir === 't2s') for (let i = 0; i < Y.length; i++) { const [j, d] = nn2(FX, Y[i]); si.push(j); ti.push(i); E += d; }
+  else for (let j = 0; j < FX.length; j++) { const [i, d] = nn2(Y, FX[j]); si.push(j); ti.push(i); E += d; }
+  return { FX, si, ti, E, rms: Math.sqrt(E / si.length) };
+}
+const solve2 = (c, X, Y, scale) => proc2(c.si.map(j => X[j]), c.ti.map(i => Y[i]), scale);
+function runICP2(fInit, X, Y, { dir = 't2s', scale = true, maxIt = 150, tol = 1e-6 } = {}) {
+  let f = fInit; const hist = [fInit], rms = [];
+  for (let j = 0; j < maxIt; j++) {
+    const c = corr2(f, X, Y, dir); rms.push(c.rms);
+    if (j > 0 && Math.abs(rms[j - 1] - rms[j]) < tol) break;
+    f = solve2(c, X, Y, scale); hist.push(f);
+  }
+  if (hist.length > rms.length) hist.length = rms.length;
+  return { hist, rms, f: hist[hist.length - 1], final: rms[rms.length - 1] };
+}
+/* interpolate two transforms about the source centroid (so the shape travels instead of swinging) */
+function lerpF(a, b, u, m = MX) {
+  const ca = F2(a, m), cb = F2(b, m); let d = b.th - a.th; d = Math.atan2(Math.sin(d), Math.cos(d));
+  const th = a.th + d * u, s = a.s + (b.s - a.s) * u, c = [ca[0] + (cb[0] - ca[0]) * u, ca[1] + (cb[1] - ca[1]) * u], cs = Math.cos(th), sn = Math.sin(th);
+  return { th, s, t: [c[0] - s * (cs * m[0] - sn * m[1]), c[1] - s * (sn * m[0] + cs * m[1])] };
+}
+const GLOBAL_RMS = 0.03;
+const fStr = f => `s = ${fmt(f.s, 3)}   θ = ${fmt(wrapDeg(deg(f.th)), 1)}°\nt = (${fmt(f.t[0])}, ${fmt(f.t[1])})`;
+
+/* ───────────── 3D helpers ───────────── */
+function humanCloud(N = 700, seed = 7) {
+  const R = rng(seed);
+  const caps = [
+    [[0, 0, 0.72], [0, 0, 0.72], 0.11],
+    [[0, 0, 0.52], [0, 0, 0.6], 0.05],
+    [[0, 0, 0.12], [0, 0, 0.46], 0.17],
+    [[0, 0, -0.02], [0, 0, 0.1], 0.15],
+    [[-0.2, 0, 0.47], [-0.5, 0, 0.47], 0.05], [[-0.5, 0, 0.47], [-0.8, 0, 0.47], 0.04],
+    [[0.2, 0, 0.47], [0.46, 0, 0.62], 0.05], [[0.46, 0, 0.62], [0.68, 0, 0.82], 0.04],
+    [[-0.1, 0, -0.04], [-0.12, -0.06, -0.44], 0.07], [[-0.12, -0.06, -0.44], [-0.12, -0.02, -0.84], 0.055], [[-0.12, -0.02, -0.86], [-0.12, -0.16, -0.88], 0.04],
+    [[0.1, 0, -0.04], [0.13, 0.03, -0.44], 0.07], [[0.13, 0.03, -0.44], [0.14, 0.02, -0.84], 0.055], [[0.14, 0.02, -0.86], [0.14, -0.12, -0.88], 0.04]
+  ];
+  const area = caps.map(([a, b, r]) => 4 * Math.PI * r * r + 2 * Math.PI * r * Math.hypot(b[0] - a[0], b[1] - a[1], b[2] - a[2]));
+  const tot = area.reduce((x, y) => x + y, 0); const pts = [];
+  for (let n = 0; n < N; n++) {
+    let u = R() * tot, k = 0; while (u > area[k]) { u -= area[k]; k++; }
+    const [a, b, r] = caps[k];
+    const g = () => { let x, y, z, l; do { x = R() * 2 - 1; y = R() * 2 - 1; z = R() * 2 - 1; l = x * x + y * y + z * z; } while (l > 1 || l < 1e-4); l = Math.sqrt(l); return [x / l, y / l, z / l]; };
+    const t = R(), d = g(); const c = [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
+    pts.push([c[0] + r * d[0] * (k === 2 ? 1.25 : 1), c[1] + r * d[1] * 0.85, c[2] + r * d[2]]);
+  }
+  return pts;
+}
+const M3 = {
+  mul: (A, B) => A.map(r => [0, 1, 2].map(j => r[0] * B[0][j] + r[1] * B[1][j] + r[2] * B[2][j])),
+  T: A => [0, 1, 2].map(i => [A[0][i], A[1][i], A[2][i]]),
+  mv: (A, v) => [0, 1, 2].map(i => A[i][0] * v[0] + A[i][1] * v[1] + A[i][2] * v[2]),
+  det: A => A[0][0] * (A[1][1] * A[2][2] - A[1][2] * A[2][1]) - A[0][1] * (A[1][0] * A[2][2] - A[1][2] * A[2][0]) + A[0][2] * (A[1][0] * A[2][1] - A[1][1] * A[2][0]),
+  I: () => [[1, 0, 0], [0, 1, 0], [0, 0, 1]]
+};
+function eigSym3(A) {
+  const a = A.map(r => r.slice()), V = M3.I();
+  for (let sweep = 0; sweep < 60; sweep++) {
+    if (a[0][1] ** 2 + a[0][2] ** 2 + a[1][2] ** 2 < 1e-24) break;
+    for (const [p, q] of [[0, 1], [0, 2], [1, 2]]) {
+      if (Math.abs(a[p][q]) < 1e-18) continue;
+      const th = (a[q][q] - a[p][p]) / (2 * a[p][q]); const t = (th >= 0 ? 1 : -1) / (Math.abs(th) + Math.sqrt(th * th + 1));
+      const c = 1 / Math.sqrt(t * t + 1), s = t * c;
+      for (let k = 0; k < 3; k++) { const x = a[k][p], y = a[k][q]; a[k][p] = c * x - s * y; a[k][q] = s * x + c * y; }
+      for (let k = 0; k < 3; k++) { const x = a[p][k], y = a[q][k]; a[p][k] = c * x - s * y; a[q][k] = s * x + c * y; }
+      for (let k = 0; k < 3; k++) { const x = V[k][p], y = V[k][q]; V[k][p] = c * x - s * y; V[k][q] = s * x + c * y; }
+    }
+  }
+  return { vals: [a[0][0], a[1][1], a[2][2]], V };
+}
+const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
+function svd3(H) {
+  const { vals, V } = eigSym3(M3.mul(M3.T(H), H));
+  const order = [0, 1, 2].sort((i, j) => vals[j] - vals[i]);
+  const v = order.map(i => [V[0][i], V[1][i], V[2][i]]); const sig = order.map(i => Math.sqrt(Math.max(vals[i], 0)));
+  const u = [];
+  for (let i = 0; i < 3; i++) {
+    if (sig[i] > 1e-9 * Math.max(sig[0], 1e-12)) { const w = M3.mv(H, v[i]); u.push(w.map(x => x / sig[i])); }
+    else u.push(i === 2 ? cross(u[0], u[1]) : [0, 0, 0]);
+  }
+  return { U: [0, 1, 2].map(r => [u[0][r], u[1][r], u[2][r]]), S: sig, V: [0, 1, 2].map(r => [v[0][r], v[1][r], v[2][r]]) };
+}
+function procrustes3(X, Y) { // argmin Σ‖sRxᵢ + t − yᵢ‖², det R = +1
+  const N = X.length, mx = [0, 0, 0], my = [0, 0, 0];
+  X.forEach(p => p.forEach((x, d) => mx[d] += x / N)); Y.forEach(p => p.forEach((y, d) => my[d] += y / N));
+  const H = [[0, 0, 0], [0, 0, 0], [0, 0, 0]]; let nx = 0;
+  for (let i = 0; i < N; i++) { const a = [X[i][0] - mx[0], X[i][1] - mx[1], X[i][2] - mx[2]], b = [Y[i][0] - my[0], Y[i][1] - my[1], Y[i][2] - my[2]]; nx += a[0] * a[0] + a[1] * a[1] + a[2] * a[2]; for (let r = 0; r < 3; r++) for (let c = 0; c < 3; c++) H[r][c] += b[r] * a[c]; }
+  const { U, S, V } = svd3(H);
+  const d = Math.sign(M3.det(M3.mul(U, M3.T(V)))) || 1;
+  const R = M3.mul(M3.mul(U, [[1, 0, 0], [0, 1, 0], [0, 0, d]]), M3.T(V));
+  const s = (S[0] + S[1] + d * S[2]) / nx; const Rm = M3.mv(R, mx);
+  return { R, s, t: my.map((y, k) => y - s * Rm[k]) };
+}
+const rotAngle = R => deg(Math.acos(clamp((R[0][0] + R[1][1] + R[2][2] - 1) / 2, -1, 1)));
+function axisAngle(ax, a) { const [x, y, z] = ax, c = Math.cos(a), s = Math.sin(a), C = 1 - c; return [[c + x * x * C, x * y * C - z * s, x * z * C + y * s], [y * x * C + z * s, c + y * y * C, y * z * C - x * s], [z * x * C - y * s, z * y * C + x * s, c + z * z * C]]; }
+function pointsObject(color, size = 0.028) {
+  const g = new THREE.BufferGeometry(); const p = new THREE.Points(g, new THREE.PointsMaterial({ color, size, sizeAttenuation: true }));
+  p.setPts = pts => { const a = new Float32Array(Math.max(1, pts.length) * 3); pts.forEach((q, i) => { a[3 * i] = q[0]; a[3 * i + 1] = q[1]; a[3 * i + 2] = q[2]; }); g.setAttribute('position', new THREE.BufferAttribute(a, 3)); g.setDrawRange(0, pts.length); g.computeBoundingSphere(); };
+  return p;
+}
+function segObject(color, opacity = 0.4) { const L = new THREE.LineSegments(new THREE.BufferGeometry(), new THREE.LineBasicMaterial({ color, transparent: true, opacity })); L.setSegs = arr => { L.geometry.dispose(); L.geometry = new THREE.BufferGeometry(); L.geometry.setAttribute('position', new THREE.Float32BufferAttribute(arr, 3)); }; return L; }
+
+/* ───────────── demos ───────────── */
+const DEMOS = [];
+
+/* 1 — closest-point correspondences */
+DEMOS.push({
+  id: 'correspondences', title: 'Finding correspondences', note: 'Pair each yᵢ with its closest point',
+  lead: 'Procrustes needs pairs (xᵢ, yᵢ), but two scans do not come with them. A natural guess pairs every target point yᵢ with the closest point of the transformed source f(X). The energy E = Σᵢ min_{x∈X} ‖f(x) − yᵢ‖² then measures how well the shapes agree.',
+  tryText: ['Drag the green source onto the red target and rotate it with the slider or with Shift-drag. ', 'Watch the pairs change', ' as you move it. Local shape is ambiguous: the bumps of both curves look alike, so which bump belongs to which cannot be decided locally.'],
+  mount(stage, panel) {
+    const S = { th: 0, s: 1, d: [0, 0], dir: 't2s' };
+    const fOf = () => { const c = Math.cos(S.th), sn = Math.sin(S.th), m = MX; return { th: S.th, s: S.s, t: [m[0] + S.d[0] - S.s * (c * m[0] - sn * m[1]), m[1] + S.d[1] - S.s * (sn * m[0] + c * m[1])] }; };
+    const cv = canvas2d(stage, draw, EXT);
+    stage.append(h('div', { class: 'hint' }, 'drag to move · Shift-drag to rotate'));
+    function draw(cv) {
+      const f = fOf(), c = corr2(f, X2, Y2, S.dir);
+      const A = c.si.map(j => c.FX[j]), B = c.ti.map(i => Y2[i]);
+      pairLines(cv, A, B, tok('--muted'), 2, 1, 0.8);
+      path(cv, Y2, tok('--accent'), 2.4); path(cv, c.FX, tok('--src'), 2.4);
+      const { ctx } = cv;
+      for (let k = 0; k < A.length; k += 2) { dot(ctx, cv.sx(B[k][0]), cv.sy(B[k][1]), 2.2, tok('--accent')); dot(ctx, cv.sx(A[k][0]), cv.sy(A[k][1]), 2.2, tok('--src')); }
+      const cx = cen2(c.FX); text(cv, 'f(X)', cv.sx(cx[0]), cv.sy(Math.max(...c.FX.map(p => p[1]))) - 10, tok('--ink'), { align: 'center', size: 17 });
+      text(cv, 'Y', cv.sx(MY[0]), cv.sy(Math.max(...Y2.map(p => p[1]))) - 10, tok('--ink'), { align: 'center', size: 17 });
+      const used = new Set(c.si).size;
+      rd.set([['E', fmt(c.E, 2)], ['RMS', fmt(c.rms, 3)], ['pairs', `${c.si.length}`], ['source points used', `${used} of ${X2.length}`]]);
+    }
+    let drag = null;
+    cv.canvas.addEventListener('pointerdown', e => { const [px, py] = evPos(e, cv.canvas); const w = [cv.wx(px), cv.wy(py)]; const ctr = [MX[0] + S.d[0], MX[1] + S.d[1]]; drag = { rot: e.shiftKey || e.altKey, w, d: S.d.slice(), th: S.th, a0: Math.atan2(w[1] - ctr[1], w[0] - ctr[0]), ctr }; cv.canvas.setPointerCapture(e.pointerId); cv.canvas.style.cursor = 'grabbing'; });
+    cv.canvas.addEventListener('pointermove', e => {
+      if (!drag) { cv.canvas.style.cursor = 'grab'; return; }
+      const [px, py] = evPos(e, cv.canvas); const w = [cv.wx(px), cv.wy(py)];
+      if (drag.rot) { const a = Math.atan2(w[1] - drag.ctr[1], w[0] - drag.ctr[0]); S.th = rad(wrapDeg(deg(drag.th + a - drag.a0))); thS.set(Math.round(deg(S.th))); }
+      else S.d = [drag.d[0] + w[0] - drag.w[0], drag.d[1] + w[1] - drag.w[1]];
+      cv.redraw();
+    });
+    const end = () => { drag = null; cv.canvas.style.cursor = 'grab'; };
+    cv.canvas.addEventListener('pointerup', end); cv.canvas.addEventListener('pointercancel', end);
+    seg(panel, { id: 'co-dir', label: 'Pair direction', options: [['t2s', 'target → source (lecture)'], ['s2t', 'source → target']], value: S.dir, onChange: v => { S.dir = v; cv.redraw(); } });
+    groupTitle(panel, 'Transform f');
+    const thS = slider(panel, { id: 'co-th', label: 'rotation θ', min: -180, max: 180, step: 1, value: 0, f: v => v + '°', onInput: v => { S.th = rad(v); cv.redraw(); } });
+    const sS = slider(panel, { id: 'co-s', label: 'scale s', min: 0.3, max: 1.5, step: 0.01, value: 1, f: v => fmt(v), onInput: v => { S.s = v; cv.redraw(); } });
+    const r = h('div', { class: 'row' }); panel.append(r);
+    button(r, 'Align centroids', () => { S.d = [MY[0] - MX[0], MY[1] - MX[1]]; cv.redraw(); });
+    button(r, 'Reset', () => { S.d = [0, 0]; S.th = 0; S.s = 1; thS.set(0); sS.set(1); cv.redraw(); });
+    const rd = readout(panel);
+    note(panel, 'Grey lines connect every second pair. With target → source pairing, every yᵢ contributes one term to E; several yᵢ can share the same source point.');
+    return () => cv.dispose();
+  }
+});
+
+/* 2 — ICP step by step */
+DEMOS.push({
+  id: 'icp', title: 'ICP, step by step', note: 'Correspondences ⇄ Procrustes',
+  lead: 'Iterative Closest Point alternates two problems that are easy on their own. With f fixed, find the closest points; with the pairs fixed, solve for the best f = {R, t, s} with Procrustes. Both steps minimise the same E, so the error never increases.',
+  tryText: ['Press ', 'Step', ' to walk through one iteration j at a time, or Run to iterate until the error stops changing. Then set the initial rotation θ₀ to 0° and run again.'],
+  mount(stage, panel) {
+    const S = { init: 'centroid', th0: 40, dir: 't2s', scale: true, f: null, j: 0, phase: 0, c: null, next: null, hist: [], disp: null, done: false, running: false, timer: 0, anim: 0, msg: '' };
+    const cv = canvas2d(stage, draw, extFor(S.init));
+    const tag = h('div', { class: 'tag' }); stage.append(tag);
+    const labels = ['Find correspondences', 'Solve Procrustes', 'Apply the transform'];
+    function draw(cv) {
+      const f = S.disp || S.f;
+      const FX = map2(f, X2);
+      if (S.phase >= 1 && S.c && !S.disp) pairLines(cv, S.c.si.map(j => S.c.FX[j]), S.c.ti.map(i => Y2[i]), tok('--muted'), 2, 1, 0.8);
+      path(cv, map2(f0(S.init, rad(S.th0)), X2), tok('--muted'), 1.2, true, [4, 5], 0.6);
+      path(cv, Y2, tok('--accent'), 2.4);
+      if (S.phase === 2 && S.next && !S.disp) path(cv, map2(S.next, X2), tok('--src'), 2, true, [7, 5], 0.75);
+      path(cv, FX, tok('--src'), 2.4);
+      const ys = Math.max(...FX.map(p => p[1])), cx = cen2(FX);
+      text(cv, `f${sup(S.j)}(X)`, cv.sx(cx[0]), cv.sy(ys) - 10, tok('--ink'), { align: 'center', size: 16 });
+      tag.textContent = `iteration j = ${S.j}` + (S.done ? ' · converged' : ` · next: ${labels[S.phase].toLowerCase()}`);
+    }
+    function info() {
+      const rows = [['j', String(S.j)], ['f', fStr(S.f)]];
+      if (S.hist.length) rows.push(['RMS', fmt(S.hist[S.hist.length - 1], 4)]);
+      if (S.c) rows.push(['E', fmt(S.c.E, 3)]);
+      rd.set(rows);
+      stepB.textContent = S.done ? 'Converged' : labels[S.phase]; stepB.disabled = S.done || S.running;
+      runB.textContent = S.running ? 'Pause' : 'Run'; runB.disabled = S.done && !S.running;
+      ch.draw([{ data: S.hist.slice(), color: tok('--accent') }], { log: true, xlabel: 'iteration j', xmin: 0, xmax: Math.max(5, S.hist.length - 1), xticks: [0, Math.max(5, S.hist.length - 1)], ytop: 1 });
+      vd.textContent = S.msg; vd.hidden = !S.msg;
+      cv.redraw();
+    }
+    function finishMsg() {
+      const r = S.hist[S.hist.length - 1];
+      if (S.dir === 's2t' && S.scale && S.f.s < 0.5) return `Converged after ${S.j} iterations, but the source has shrunk to s = ${fmt(S.f.s, 2)}. When every source point picks its closest target point, a smaller source always fits better: pair from the target to the source.`;
+      if (r < GLOBAL_RMS) return `Converged after ${S.j} iterations with RMS ${fmt(r, 4)}: the shapes are aligned.`;
+      return `Converged after ${S.j} iterations, but RMS ${fmt(r, 3)} is a local minimum: the shapes are not aligned. Try another θ₀ or open "Local minima".`;
+    }
+    function computeCorr() {
+      S.c = corr2(S.f, X2, Y2, S.dir); S.hist.push(S.c.rms); S.phase = 1;
+      const H = S.hist; if ((H.length > 1 && Math.abs(H[H.length - 2] - H[H.length - 1]) < 1e-5) || S.j >= 120) { S.done = true; S.msg = finishMsg(); }
+    }
+    function step(cb) {
+      if (S.done) return cb && cb();
+      if (S.phase === 0) { computeCorr(); info(); cb && cb(); }
+      else if (S.phase === 1) { S.next = solve2(S.c, X2, Y2, S.scale); S.phase = 2; info(); cb && cb(); }
+      else {
+        const a = S.f, b = S.next, t0 = performance.now(), dur = reduced() ? 1 : (S.running ? 260 : 450);
+        const tick = now => { const u = clamp((now - t0) / dur, 0, 1), e = u < 0.5 ? 2 * u * u : 1 - (-2 * u + 2) ** 2 / 2; S.disp = lerpF(a, b, e); cv.redraw(); if (u < 1) S.anim = requestAnimationFrame(tick); else { S.disp = null; S.f = b; S.next = null; S.c = null; S.j++; S.phase = 0; S.anim = 0; info(); cb && cb(); } };
+        S.anim = requestAnimationFrame(tick);
+      }
+    }
+    function run() {
+      if (S.running) { S.running = false; clearTimeout(S.timer); info(); return; }
+      S.running = true; info();
+      const loop = () => { if (!S.running) return; if (S.done) { S.running = false; info(); return; } step(() => { S.timer = setTimeout(loop, S.phase === 0 ? 40 : 160); }); };
+      loop();
+    }
+    function reset() { S.running = false; clearTimeout(S.timer); cancelAnimationFrame(S.anim); S.disp = null; S.f = f0(S.init, rad(S.th0)); S.j = 0; S.phase = 0; S.c = null; S.next = null; S.hist = []; S.done = false; S.msg = ''; info(); }
+    groupTitle(panel, 'Iterate');
+    const r1 = h('div', { class: 'row' }); panel.append(r1);
+    const stepB = button(r1, 'Step', () => step(), true);
+    const runB = button(r1, 'Run', run);
+    button(r1, 'Reset', reset);
+    const vd = verdict(panel); vd.hidden = true;
+    const chHost = h('div'); panel.append(chHost); const ch = makeChart(chHost, { height: 120 });
+    const rd = readout(panel);
+    groupTitle(panel, 'Initialisation f⁰');
+    seg(panel, { id: 'icp-init', options: [['identity', 'R = I, t = 0'], ['centroid', 'align centroids']], value: S.init, onChange: v => { S.init = v; cv.setExtent(extFor(v)); reset(); } });
+    slider(panel, { id: 'icp-th0', label: 'initial rotation θ₀', min: -180, max: 180, step: 5, value: S.th0, f: v => v + '°', onInput: v => { S.th0 = v; reset(); } });
+    groupTitle(panel, 'Pairs and model');
+    seg(panel, { id: 'icp-dir', options: [['t2s', 'target → source'], ['s2t', 'source → target']], value: S.dir, onChange: v => { S.dir = v; reset(); } });
+    check(panel, { id: 'icp-scale', label: 'Estimate scale s', checked: true, onChange: v => { S.scale = v; reset(); } });
+    note(panel, 'Dashed grey: f⁰(X). Dashed green: the Procrustes solution before it is applied.');
+    reset();
+    return () => { S.running = false; clearTimeout(S.timer); cancelAnimationFrame(S.anim); cv.dispose(); ch.dispose(); };
+  }
+});
+
+/* 3 — local minima: sweep the initial rotation */
+DEMOS.push({
+  id: 'local-minima', title: 'Local minima', note: 'Where ICP ends depends on f⁰',
+  lead: 'ICP is a local method: every iteration descends from where it starts. Running it to convergence from many initial rotations θ₀ reveals the basin of the global minimum and the local minima around it.',
+  tryText: ['Each dot is one complete ICP run started at θ₀. ', 'Click a dot', ' to replay that run in the view above.'],
+  mount(stage, panel) {
+    stage.classList.add('stack'); const top = h('div'), bot = h('div'); stage.append(top, bot);
+    const Ys = Y2.filter((_, i) => i % 2 === 0);
+    const thetas = Array.from({ length: 72 }, (_, k) => -180 + 5 * k);
+    const S = { init: 'centroid', sel: 36, frame: 0, runs: [], k: 0, raf: 0, anim: 0 };
+    const cv = canvas2d(top, draw, extFor(S.init));
+    const tag = h('div', { class: 'tag' }); top.append(tag);
+    const ch = makeChart(bot, { fill: true });
+    function draw(cv) {
+      const run = S.runs[S.sel]; path(cv, Y2, tok('--accent'), 2.4);
+      path(cv, map2(f0(S.init, rad(thetas[S.sel])), X2), tok('--muted'), 1.2, true, [4, 5], 0.6);
+      if (!run) { tag.textContent = 'computing…'; return; }
+      const f = run.hist[Math.min(S.frame, run.hist.length - 1)]; path(cv, map2(f, X2), tok('--src'), 2.4);
+      tag.textContent = `θ₀ = ${thetas[S.sel]}° · iteration ${Math.min(S.frame, run.hist.length - 1)} of ${run.hist.length - 1} · RMS ${fmt(run.rms[Math.min(S.frame, run.rms.length - 1)], 3)}`;
+    }
+    function drawChart() {
+      const ys = thetas.map((_, k) => S.runs[k] ? S.runs[k].final : NaN);
+      const cols = ys.map(y => y < GLOBAL_RMS ? tok('--accent') : tok('--muted'));
+      const sel = S.runs[S.sel];
+      ch.draw([{ data: ys, x: thetas, dots: true, colors: cols, color: tok('--muted') }], { xmin: -180, xmax: 180, xticks: [-180, -90, 0, 90, 180], xfmt: v => v + '°', xlabel: 'initial rotation θ₀', ylabel: 'final RMS', ymin: 0, ymax: 0.3, marker: sel ? { x: thetas[S.sel], y: Math.min(sel.final, 0.3) } : null });
+    }
+    function summary() {
+      const done = S.runs.filter(Boolean); const good = done.filter(r => r.final < GLOBAL_RMS).length;
+      const sel = S.runs[S.sel];
+      const rows = [['runs finished', `${done.length} of ${thetas.length}`], ['reach the global minimum', done.length ? `${good} (${Math.round(100 * good / done.length)}%)` : '—']];
+      if (sel) rows.push(['selected θ₀', thetas[S.sel] + '°'], ['iterations', String(sel.hist.length - 1)], ['final RMS', fmt(sel.final, 4)], ['final f', fStr(sel.f)]);
+      rd.set(rows);
+      if (sel) vd.textContent = sel.final < GLOBAL_RMS ? 'This start lies in the basin of the global minimum: the shapes end up aligned.' : 'This start converges to a local minimum: ICP stops although the shapes are not aligned.';
+    }
+    function sweep() {
+      cancelAnimationFrame(S.raf); S.runs = []; S.k = 0;
+      const chunk = () => { const t0 = performance.now(); while (S.k < thetas.length && performance.now() - t0 < 14) { S.runs[S.k] = runICP2(f0(S.init, rad(thetas[S.k]), X2, Ys), X2, Ys, { maxIt: 120, tol: 1e-6 }); S.k++; } drawChart(); summary(); if (S.runs[S.sel] && S.frame === 0) cv.redraw(); if (S.k < thetas.length) S.raf = requestAnimationFrame(chunk); else replay(); };
+      S.raf = requestAnimationFrame(chunk);
+    }
+    function replay() {
+      cancelAnimationFrame(S.anim); const run = S.runs[S.sel]; if (!run) return; S.frame = 0; const n = run.hist.length - 1, t0 = performance.now(), per = reduced() ? 0 : 90;
+      const tick = now => { S.frame = per ? clamp(Math.floor((now - t0) / per), 0, n) : n; cv.redraw(); if (S.frame < n) S.anim = requestAnimationFrame(tick); };
+      S.anim = requestAnimationFrame(tick); summary(); drawChart();
+    }
+    ch.canvas.addEventListener('click', e => { const [px] = evPos(e, ch.canvas); const th = ch.dataX(px); const k = clamp(Math.round((th + 180) / 5), 0, thetas.length - 1); S.sel = k; thS.set(thetas[k]); replay(); });
+    ch.canvas.style.cursor = 'pointer';
+    seg(panel, { id: 'lm-init', label: 'Initialisation', options: [['centroid', 'align centroids'], ['identity', 'R = I, t = 0']], value: S.init, onChange: v => { S.init = v; S.frame = 0; cv.setExtent(extFor(v)); sweep(); } });
+    const thS = slider(panel, { id: 'lm-th', label: 'replay θ₀', min: -180, max: 175, step: 5, value: 0, f: v => v + '°', onInput: v => { S.sel = Math.round((v + 180) / 5); replay(); } });
+    const r = h('div', { class: 'row' }); panel.append(r); button(r, 'Replay', replay, true);
+    const vd = verdict(panel);
+    const rd = readout(panel);
+    legend(panel, [[tok('--accent'), 'global minimum (RMS < 0.03)'], [tok('--muted'), 'local minimum']]);
+    note(panel, 'Each run uses the lecture\'s ICP with scale and target → source pairs, and stops when the RMS changes by less than 10⁻⁶.');
+    sweep();
+    return () => { cancelAnimationFrame(S.raf); cancelAnimationFrame(S.anim); cv.dispose(); ch.dispose(); };
+  }
+});
+
+/* 4 — closest-point search with a k-d tree */
+DEMOS.push({
+  id: 'closest-points', title: 'Closest-point search', note: 'Brute force vs k-d tree',
+  lead: 'Every ICP iteration needs the nearest neighbour of each target point. Brute force compares against all N points: O(N) per query and O(N²) per iteration. A k-d tree discards whole cells and needs O(log N) comparisons per query on average.',
+  tryText: ['Move the pointer over the points. The tree only compares the ', 'highlighted points', '; every other point is skipped because its cell cannot contain a closer one.'],
+  mount(stage, panel) {
+    const ext = { x0: -1.6, x1: 1.6, y0: -1, y1: 1 };
+    const S = { N: 800, seed: 1, q: [0.37, 0.21], splits: true };
+    let P = [], tree = null, avg = 0;
+    function kd(idx, depth, box) {
+      if (!idx.length) return null; const ax = depth % 2; idx.sort((a, b) => P[a][ax] - P[b][ax]); const m = idx.length >> 1, i = idx[m], v = P[i][ax];
+      return { i, ax, v, box, l: kd(idx.slice(0, m), depth + 1, ax ? { ...box, y1: v } : { ...box, x1: v }), r: kd(idx.slice(m + 1), depth + 1, ax ? { ...box, y0: v } : { ...box, x0: v }) };
+    }
+    function search(node, q, best, visited) {
+      if (!node) return; const p = P[node.i]; const d = (p[0] - q[0]) ** 2 + (p[1] - q[1]) ** 2; visited.push(node); if (d < best.d) { best.d = d; best.i = node.i; }
+      const diff = q[node.ax] - node.v; const near = diff < 0 ? node.l : node.r, far = diff < 0 ? node.r : node.l;
+      search(near, q, best, visited); if (diff * diff < best.d) search(far, q, best, visited);
+    }
+    function build() {
+      const R = rng(S.seed * 7919 + S.N); P = Array.from({ length: S.N }, () => [ext.x0 + (ext.x1 - ext.x0) * R(), ext.y0 + (ext.y1 - ext.y0) * R()]);
+      tree = kd(P.map((_, i) => i), 0, { ...ext });
+      const Rq = rng(99); let tot = 0; for (let k = 0; k < 300; k++) { const v = []; search(tree, [ext.x0 + (ext.x1 - ext.x0) * Rq(), ext.y0 + (ext.y1 - ext.y0) * Rq()], { d: Infinity, i: -1 }, v); tot += v.length; } avg = tot / 300;
+    }
+    const cv = canvas2d(stage, draw, ext);
+    stage.append(h('div', { class: 'hint' }, 'move the pointer · drag on touch screens'));
+    function draw(cv) {
+      const { ctx } = cv; const vis = [], best = { d: Infinity, i: -1 }; search(tree, S.q, best, vis); const vset = new Set(vis.map(n => n.i));
+      if (S.splits) {
+        ctx.lineWidth = 1; ctx.strokeStyle = tok('--line'); ctx.beginPath();
+        const walk = n => { if (!n) return; const b = n.box; if (n.ax === 0) { ctx.moveTo(cv.sx(n.v), cv.sy(b.y0)); ctx.lineTo(cv.sx(n.v), cv.sy(b.y1)); } else { ctx.moveTo(cv.sx(b.x0), cv.sy(n.v)); ctx.lineTo(cv.sx(b.x1), cv.sy(n.v)); } walk(n.l); walk(n.r); };
+        walk(tree); ctx.stroke();
+        ctx.strokeStyle = tok('--accent'); ctx.globalAlpha = 0.55; ctx.lineWidth = 1.3; ctx.beginPath();
+        vis.forEach(n => { const b = n.box; if (n.ax === 0) { ctx.moveTo(cv.sx(n.v), cv.sy(b.y0)); ctx.lineTo(cv.sx(n.v), cv.sy(b.y1)); } else { ctx.moveTo(cv.sx(b.x0), cv.sy(n.v)); ctx.lineTo(cv.sx(b.x1), cv.sy(n.v)); } });
+        ctx.stroke(); ctx.globalAlpha = 1;
+      }
+      const r = S.N > 2000 ? 1.4 : S.N > 600 ? 2 : 2.8;
+      ctx.fillStyle = tok('--muted'); P.forEach((p, i) => { if (!vset.has(i)) { ctx.fillRect(cv.sx(p[0]) - r / 2, cv.sy(p[1]) - r / 2, r, r); } });
+      vis.forEach(n => dot(ctx, cv.sx(P[n.i][0]), cv.sy(P[n.i][1]), r + 1.6, tok('--accent')));
+      const nb = P[best.i], qx = cv.sx(S.q[0]), qy = cv.sy(S.q[1]);
+      ctx.setLineDash([4, 4]); dot(ctx, qx, qy, Math.sqrt(best.d) * cv.S.k, null, tok('--ink'), 1); ctx.setLineDash([]);
+      ctx.strokeStyle = tok('--ink'); ctx.lineWidth = 1.6; ctx.beginPath(); ctx.moveTo(qx, qy); ctx.lineTo(cv.sx(nb[0]), cv.sy(nb[1])); ctx.stroke();
+      dot(ctx, cv.sx(nb[0]), cv.sy(nb[1]), r + 4, null, tok('--ink'), 2);
+      dot(ctx, qx, qy, 5, tok('--ink'));
+      rd.set([['points N', String(S.N)], ['brute force', `${S.N} distances`], ['k-d tree, this query', `${vis.length} distances`], ['k-d tree, average', `${fmt(avg, 1)} distances`], ['log₂ N', fmt(Math.log2(S.N), 1)], ['one ICP iteration (N queries)', `brute force ${(S.N * S.N).toLocaleString('en-US')}\nk-d tree ≈ ${Math.round(S.N * avg).toLocaleString('en-US')}`]]);
+    }
+    const setQ = e => { const [px, py] = evPos(e, cv.canvas); S.q = [clamp(cv.wx(px), ext.x0, ext.x1), clamp(cv.wy(py), ext.y0, ext.y1)]; cv.redraw(); };
+    cv.canvas.addEventListener('pointermove', setQ); cv.canvas.addEventListener('pointerdown', e => { cv.canvas.setPointerCapture(e.pointerId); setQ(e); });
+    slider(panel, { id: 'kd-n', label: 'number of points N', min: 50, max: 5000, step: 50, value: S.N, f: v => String(v), onInput: v => { S.N = v; build(); cv.redraw(); } });
+    check(panel, { id: 'kd-split', label: 'Show the tree\'s split lines', checked: true, onChange: v => { S.splits = v; cv.redraw(); } });
+    const r = h('div', { class: 'row' }); panel.append(r); button(r, 'New points', () => { S.seed++; build(); cv.redraw(); });
+    const rd = readout(panel);
+    legend(panel, [[tok('--accent'), 'points and splits the tree visits'], [tok('--ink'), 'query and its nearest neighbour']]);
+    note(panel, 'The search descends to the query\'s cell first, then backtracks only into cells closer than the best distance found so far (the dashed circle). Random subsampling of the points reduces the cost further.');
+    build(); cv.redraw();
+    return () => cv.dispose();
+  }
+});
+
+/* 5 — point-to-point vs point-to-surface */
+function closestOnTri(p, a, b, c) { // Ericson, Real-Time Collision Detection
+  const sub = (u, v) => [u[0] - v[0], u[1] - v[1], u[2] - v[2]], dt = (u, v) => u[0] * v[0] + u[1] * v[1] + u[2] * v[2], ad = (u, v, k) => [u[0] + v[0] * k, u[1] + v[1] * k, u[2] + v[2] * k];
+  const ab = sub(b, a), ac = sub(c, a), ap = sub(p, a); const d1 = dt(ab, ap), d2 = dt(ac, ap); if (d1 <= 0 && d2 <= 0) return a;
+  const bp = sub(p, b); const d3 = dt(ab, bp), d4 = dt(ac, bp); if (d3 >= 0 && d4 <= d3) return b;
+  const vc = d1 * d4 - d3 * d2; if (vc <= 0 && d1 >= 0 && d3 <= 0) return ad(a, ab, d1 / (d1 - d3));
+  const cp = sub(p, c); const d5 = dt(ab, cp), d6 = dt(ac, cp); if (d6 >= 0 && d5 <= d6) return c;
+  const vb = d5 * d2 - d1 * d6; if (vb <= 0 && d2 >= 0 && d6 <= 0) return ad(a, ac, d2 / (d2 - d6));
+  const va = d3 * d6 - d5 * d4; if (va <= 0 && d4 - d3 >= 0 && d5 - d6 >= 0) return ad(b, sub(c, b), (d4 - d3) / ((d4 - d3) + (d5 - d6)));
+  const den = 1 / (va + vb + vc); return ad(ad(a, ab, vb * den), ac, vc * den);
+}
+function closestOnPoly(p, P) { let best = null, bd = Infinity; for (let k = 0; k < P.length; k++) { const a = P[k], b = P[(k + 1) % P.length], abx = b[0] - a[0], aby = b[1] - a[1]; const u = clamp(((p[0] - a[0]) * abx + (p[1] - a[1]) * aby) / (abx * abx + aby * aby), 0, 1); const q = [a[0] + u * abx, a[1] + u * aby], d = (p[0] - q[0]) ** 2 + (p[1] - q[1]) ** 2; if (d < bd) { bd = d; best = q; } } return [best, bd]; }
+function resampleClosed(P, n) { const Q = P.concat([P[0]]); const s = [0]; for (let i = 1; i < Q.length; i++) s.push(s[i - 1] + Math.hypot(Q[i][0] - Q[i - 1][0], Q[i][1] - Q[i - 1][1])); const out = []; let k = 0; for (let m = 0; m < n; m++) { const t = s[s.length - 1] * m / n; while (s[k + 1] < t) k++; const u = (t - s[k]) / (s[k + 1] - s[k] || 1); out.push([Q[k][0] + u * (Q[k + 1][0] - Q[k][0]), Q[k][1] + u * (Q[k + 1][1] - Q[k][1])]); } return out; }
+DEMOS.push({
+  id: 'point-to-surface', title: 'Point-to-surface distance', note: 'Closest vertex vs closest surface point',
+  lead: 'A mesh is a surface, not a set of vertices. The distance from xᵢ to its closest vertex overestimates the distance to the surface, and pairs that snap to vertices pull the alignment towards them.',
+  tryText: ['Drag xᵢ over the triangle or use the sliders, and compare both distances. On the right, ', 'Run both', ' aligns a dense scan to a coarse polygon, once with each kind of pair.'],
+  mount(stage, panel) {
+    stage.classList.add('split'); const left = h('div'), right = h('div', { class: 'sub2' }); stage.append(left, right);
+    const rTop = h('div'), rBot = h('div'); right.append(rTop, rBot);
+    /* (a) the triangle */
+    const V = viewer(left, { cam: [0.5, -4.4, 3.4], target: [0.1, 0.1, 0.15] });
+    const T = [[-1.0, -0.7, 0], [1.2, -0.55, 0], [0.05, 0.95, 0]];
+    const tg = new THREE.BufferGeometry(); tg.setAttribute('position', new THREE.Float32BufferAttribute(T.flat(), 3)); tg.computeVertexNormals();
+    const accent = tok('--accent');
+    V.scene.add(new THREE.Mesh(tg, new THREE.MeshStandardMaterial({ color: accent, transparent: true, opacity: 0.2, side: THREE.DoubleSide, depthWrite: false })));
+    const edge = new THREE.LineLoop(new THREE.BufferGeometry().setFromPoints(T.map(p => new THREE.Vector3(...p))), new THREE.LineBasicMaterial({ color: accent })); V.scene.add(edge);
+    const grid = new THREE.GridHelper(4, 16, tok('--grid'), tok('--grid')); grid.rotation.x = Math.PI / 2; grid.position.z = -0.002; V.scene.add(grid);
+    T.forEach(p => { const m = new THREE.Mesh(new THREE.SphereGeometry(0.045, 18, 12), new THREE.MeshBasicMaterial({ color: accent })); m.position.set(...p); V.scene.add(m); });
+    const qM = new THREE.Mesh(new THREE.SphereGeometry(0.06, 20, 14), new THREE.MeshBasicMaterial({ color: tok('--src') })); V.scene.add(qM);
+    const footM = new THREE.Mesh(new THREE.SphereGeometry(0.035, 16, 10), new THREE.MeshBasicMaterial({ color: tok('--ink') })); V.scene.add(footM);
+    const p2pL = new THREE.Line(new THREE.BufferGeometry(), new THREE.LineDashedMaterial({ color: tok('--muted'), dashSize: 0.06, gapSize: 0.05 })); V.scene.add(p2pL);
+    const p2sL = new THREE.Line(new THREE.BufferGeometry(), new THREE.LineBasicMaterial({ color: tok('--ink') })); V.scene.add(p2sL);
+    const lab = (t) => { const d = h('div', { class: 'lbl3' }, t); left.append(d); return d; };
+    const labs = [lab('y₀'), lab('y₁'), lab('y₂')], qLab = lab('xᵢ');
+    left.append(h('div', { class: 'tag' }, '(a) one triangle of the target mesh'));
+    const A = { q: [0.62, 0.22, 0.32] };
+    function updTri() {
+      qM.position.set(...A.q); const foot = closestOnTri(A.q, ...T); footM.position.set(...foot);
+      let k = 0, bd = Infinity; T.forEach((p, i) => { const d = Math.hypot(p[0] - A.q[0], p[1] - A.q[1], p[2] - A.q[2]); if (d < bd) { bd = d; k = i; } });
+      p2pL.geometry.dispose(); p2pL.geometry = new THREE.BufferGeometry().setFromPoints([qM.position.clone(), new THREE.Vector3(...T[k])]); p2pL.computeLineDistances();
+      p2sL.geometry.dispose(); p2sL.geometry = new THREE.BufferGeometry().setFromPoints([qM.position.clone(), footM.position.clone()]);
+      const ds = Math.hypot(foot[0] - A.q[0], foot[1] - A.q[1], foot[2] - A.q[2]);
+      rdA.set([['closest vertex', `y${'₀₁₂'[k]}`], ['point-to-point distance', fmt(bd, 3)], ['point-to-surface distance', fmt(ds, 3)], ['overestimate', ds > 1e-6 ? `× ${fmt(bd / ds, 2)}` : '—']]);
+    }
+    const v3 = new THREE.Vector3();
+    V.onFrame = () => { const r = left.getBoundingClientRect(); const put = (d, p) => { v3.set(...p).project(V.camera); d.style.left = ((v3.x + 1) / 2 * r.width) + 'px'; d.style.top = ((1 - v3.y) / 2 * r.height) + 'px'; }; T.forEach((p, i) => put(labs[i], p)); put(qLab, A.q); };
+    // drag xᵢ in its horizontal plane
+    const ray = new THREE.Raycaster(); let dragging = false;
+    const ndc = e => { const r = V.renderer.domElement.getBoundingClientRect(); return new THREE.Vector2(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1); };
+    V.renderer.domElement.addEventListener('pointerdown', e => { ray.setFromCamera(ndc(e), V.camera); if (ray.intersectObject(qM).length) { dragging = true; V.controls.enabled = false; V.renderer.domElement.setPointerCapture(e.pointerId); } });
+    V.renderer.domElement.addEventListener('pointermove', e => { if (!dragging) return; ray.setFromCamera(ndc(e), V.camera); const pl = new THREE.Plane(new THREE.Vector3(0, 0, 1), -A.q[2]); const hit = new THREE.Vector3(); if (ray.ray.intersectPlane(pl, hit)) { A.q = [clamp(hit.x, -1.6, 1.8), clamp(hit.y, -1.3, 1.5), A.q[2]]; sx.set(+A.q[0].toFixed(2)); sy.set(+A.q[1].toFixed(2)); updTri(); } });
+    const endDrag = () => { dragging = false; V.controls.enabled = true; };
+    V.renderer.domElement.addEventListener('pointerup', endDrag); V.renderer.domElement.addEventListener('pointercancel', endDrag);
+
+    /* (b) dense scan vs coarse polygon, rigid ICP with both kinds of pairs */
+    const extB = { x0: 1.2, x1: 3.5, y0: -1.45, y1: 1.6 };
+    const B = { V: 10, th0: 20, show: 'p2s', frame: 0, anim: 0, res: null };
+    const cvB = canvas2d(rTop, drawB, extB);
+    rTop.append(h('div', { class: 'tag' }, '(b) dense scan → coarse polygon'));
+    const ch = makeChart(rBot, { fill: true });
+    function simulate() {
+      const poly = Array.from({ length: B.V }, (_, k) => Y2[Math.round(k * Y2.length / B.V) % Y2.length]);
+      const src = resampleClosed(poly, 160), m = cen2(src);
+      const out = {};
+      for (const mode of ['p2p', 'p2s']) {
+        let f = { th: rad(B.th0), s: 1, t: [0, 0] }; { const c = Math.cos(f.th), s = Math.sin(f.th); f.t = [m[0] + 0.22 - (c * m[0] - s * m[1]), m[1] - 0.14 - (s * m[0] + c * m[1])]; }
+        const hist = [], err = [], pairs = [];
+        for (let j = 0; j <= 40; j++) {
+          const FX = map2(f, src); hist.push(f);
+          let e = 0; const tg = FX.map(p => { const [q, d] = closestOnPoly(p, poly); e += d; if (mode === 'p2s') return q; return poly[nn2(poly, p)[0]]; });
+          err.push(Math.sqrt(e / FX.length)); pairs.push(tg);
+          f = proc2(src, tg, false);
+        }
+        out[mode] = { hist, err, pairs };
+      }
+      B.res = { poly, src, ...out };
+    }
+    function drawB(cv) {
+      if (!B.res) return; const { poly, src } = B.res, r = B.res[B.show], j = Math.min(B.frame, 40);
+      const FX = map2(r.hist[j], src);
+      pairLines(cv, FX, r.pairs[j], tok('--muted'), 2, 1, 0.8);
+      path(cv, poly, tok('--accent'), 2.2); poly.forEach(p => dot(cv.ctx, cv.sx(p[0]), cv.sy(p[1]), 3.5, tok('--accent')));
+      FX.forEach(p => dot(cv.ctx, cv.sx(p[0]), cv.sy(p[1]), 1.8, tok('--src')));
+    }
+    function drawChartB() {
+      const j = Math.min(B.frame, 40); const R = B.res;
+      ch.draw([{ data: R.p2p.err.slice(0, j + 1), color: tok('--slate'), dash: [6, 4] }, { data: R.p2s.err.slice(0, j + 1), color: tok('--accent') }], { log: true, floor: 1e-4, xmin: 0, xmax: 40, xticks: [0, 10, 20, 30, 40], xlabel: 'iteration j', ylabel: 'RMS to surface', ytop: 1 });
+      rdB.set([['iteration', String(j)], ['point-to-point', fmt(R.p2p.err[j], 4)], ['point-to-surface', fmt(R.p2s.err[j], 4)]]);
+    }
+    function play() { cancelAnimationFrame(B.anim); const t0 = performance.now(), per = reduced() ? 0 : 70; const tick = now => { B.frame = per ? clamp(Math.floor((now - t0) / per), 0, 40) : 40; cvB.redraw(); drawChartB(); if (B.frame < 40) B.anim = requestAnimationFrame(tick); }; B.anim = requestAnimationFrame(tick); }
+    function rebuild(frame = 0) { cancelAnimationFrame(B.anim); simulate(); B.frame = frame; cvB.redraw(); drawChartB(); }
+
+    groupTitle(panel, '(a) Query point xᵢ');
+    const sx = slider(panel, { id: 'ps-x', label: 'x', min: -1.6, max: 1.8, step: 0.01, value: A.q[0], f: v => fmt(v), onInput: v => { A.q[0] = v; updTri(); } });
+    const sy = slider(panel, { id: 'ps-y', label: 'y', min: -1.3, max: 1.5, step: 0.01, value: A.q[1], f: v => fmt(v), onInput: v => { A.q[1] = v; updTri(); } });
+    slider(panel, { id: 'ps-z', label: 'height above the triangle', min: 0, max: 1, step: 0.01, value: A.q[2], f: v => fmt(v), onInput: v => { A.q[2] = v; updTri(); } });
+    const rdA = readout(panel);
+    groupTitle(panel, '(b) Coarse target polygon');
+    const r = h('div', { class: 'row' }); panel.append(r); button(r, 'Run both', play, true); button(r, 'Reset', () => rebuild(0));
+    seg(panel, { id: 'ps-show', label: 'Show the run with', options: [['p2p', 'point-to-point'], ['p2s', 'point-to-surface']], value: B.show, onChange: v => { B.show = v; cvB.redraw(); } });
+    slider(panel, { id: 'ps-v', label: 'polygon vertices', min: 6, max: 30, step: 1, value: B.V, f: v => String(v), onInput: v => { B.V = v; rebuild(40); } });
+    slider(panel, { id: 'ps-th', label: 'initial rotation', min: -40, max: 40, step: 1, value: B.th0, f: v => v + '°', onInput: v => { B.th0 = v; rebuild(40); } });
+    const rdB = readout(panel);
+    legend(panel, [[tok('--slate'), 'point-to-point (closest vertex)', true], [tok('--accent'), 'point-to-surface (closest point on an edge)']]);
+    note(panel, 'Both runs use rigid ICP (s = 1) and the same error measure, the RMS distance to the polygon. Pairs that snap to vertices stall at an error floor; pairs on the edges keep sliding until the scan lies on the surface.');
+    updTri(); rebuild(0);
+    return () => { cancelAnimationFrame(B.anim); V.dispose(); cvB.dispose(); ch.dispose(); };
+  }
+});
+
+/* 6 — gradient-based ICP */
+DEMOS.push({
+  id: 'gradient', title: 'Gradient-based ICP', note: 'f^(j+1) = f^j − α∇E(f^j)',
+  lead: 'Procrustes solves the rigid case in closed form. For a general deformation model we keep the correspondences fixed in each iteration j and take gradient steps on the parameters of f instead, here θ, t and log s.',
+  tryText: ['Change the step size α. A small α converges slowly, a moderate α matches Procrustes-ICP after a few iterations, and ', 'too large an α diverges', '.'],
+  mount(stage, panel) {
+    stage.classList.add('stack'); const top = h('div'), bot = h('div'); stage.append(top, bot);
+    const S = { alpha: 0.2, inner: 5, th0: 40, iters: 30, frame: 0, anim: 0, res: null, arrows: true };
+    const cv = canvas2d(top, draw, extFor('centroid')); const tag = h('div', { class: 'tag' }); top.append(tag);
+    const ch = makeChart(bot, { fill: true });
+    const Xc = X2.map(p => [p[0] - MX[0], p[1] - MX[1]]);
+    const toF = p => { const s = Math.exp(p[3]), c = Math.cos(p[0]), sn = Math.sin(p[0]); return { th: p[0], s, t: [p[1] - s * (c * MX[0] - sn * MX[1]), p[2] - s * (sn * MX[0] + c * MX[1])] }; };
+    function simulate() {
+      // parameters p = (θ, cₓ, c_y, σ):  f(x) = e^σ R(θ)(x − x̄) + c
+      let p = [rad(S.th0), MY[0], MY[1], 0]; const hist = [], E = [], arrows = []; let diverged = -1;
+      for (let j = 0; j < S.iters; j++) {
+        const f = toF(p); hist.push(f); const c = corr2(f, X2, Y2, 't2s'); E.push(c.E / c.si.length); arrows.push(c);
+        if (!Number.isFinite(c.E) || c.E / c.si.length > 50) { diverged = j; break; }
+        for (let k = 0; k < S.inner; k++) {
+          const s = Math.exp(p[3]), cs = Math.cos(p[0]), sn = Math.sin(p[0]); let gth = 0, gx = 0, gy = 0, gs = 0; const n = c.si.length;
+          for (let q = 0; q < n; q++) {
+            const a = Xc[c.si[q]], y = Y2[c.ti[q]]; const ra = [cs * a[0] - sn * a[1], sn * a[0] + cs * a[1]];
+            const rx = s * ra[0] + p[1] - y[0], ry = s * ra[1] + p[2] - y[1];
+            gth += rx * (-s * ra[1]) + ry * (s * ra[0]); gx += rx; gy += ry; gs += rx * s * ra[0] + ry * s * ra[1];
+          }
+          p = [p[0] - S.alpha * 2 * gth / n, p[1] - S.alpha * 2 * gx / n, p[2] - S.alpha * 2 * gy / n, p[3] - S.alpha * 2 * gs / n];
+        }
+      }
+      const pr = runICP2(f0('centroid', rad(S.th0)), X2, Y2, { maxIt: S.iters, tol: -1 });
+      S.res = { hist, E, arrows, diverged, pE: pr.rms.map(r => r * r) };
+    }
+    function draw(cv) {
+      if (!S.res) return; const R = S.res, j = Math.min(S.frame, R.hist.length - 1), f = R.hist[j], c = R.arrows[j];
+      path(cv, Y2, tok('--accent'), 2.4);
+      const FX = map2(f, X2);
+      if (S.arrows && c) { const { ctx } = cv; for (let q = 0; q < c.si.length; q += 4) { const a = c.FX[c.si[q]], y = Y2[c.ti[q]]; arrow(ctx, cv.sx(a[0]), cv.sy(a[1]), cv.sx(y[0]), cv.sy(y[1]), tok('--muted'), 1, 6); } }
+      if (FX.every(p => Number.isFinite(p[0]))) path(cv, FX, tok('--src'), 2.4);
+      tag.textContent = `iteration j = ${j} · E = ${fmt(R.E[j], 4)}` + (R.diverged >= 0 && j >= R.diverged ? ' · diverged' : '');
+    }
+    function drawChart() {
+      const R = S.res, j = Math.min(S.frame, R.hist.length - 1);
+      ch.draw([{ data: R.pE.slice(0, j + 1), color: tok('--slate'), dash: [6, 4] }, { data: R.E.slice(0, j + 1), color: tok('--accent') }], { log: true, floor: 1e-5, xmin: 0, xmax: S.iters - 1, xticks: [0, Math.round((S.iters - 1) / 2), S.iters - 1], xlabel: 'iteration j', ylabel: 'E / N', ytop: 10 });
+      const f = R.hist[j];
+      rd.set([['α', fmt(S.alpha, 3)], ['gradient steps per j', String(S.inner)], ['E / N, gradient', fmt(R.E[j], 5)], ['E / N, Procrustes', fmt(R.pE[Math.min(j, R.pE.length - 1)], 5)], ['f, gradient', fStr(f)]]);
+      const last = R.E[R.E.length - 1];
+      vd.textContent = R.diverged >= 0 ? `Diverged at iteration ${R.diverged}: α is too large for the curvature of E, so each step overshoots the minimum.` : last > 1.5 * R.pE[R.pE.length - 1] + 2e-5 ? 'Still converging: with this α the steps are too small to keep up with Procrustes-ICP.' : 'Converged: the gradient steps reach the same minimum as the closed-form Procrustes steps.';
+    }
+    function play() { cancelAnimationFrame(S.anim); const n = S.res.hist.length - 1, t0 = performance.now(), per = reduced() ? 0 : 110; const tick = now => { S.frame = per ? clamp(Math.floor((now - t0) / per), 0, n) : n; cv.redraw(); drawChart(); if (S.frame < n) S.anim = requestAnimationFrame(tick); }; S.anim = requestAnimationFrame(tick); }
+    function rebuild() { simulate(); play(); }
+    const r = h('div', { class: 'row' }); panel.append(r); button(r, 'Replay', play, true);
+    const vd = verdict(panel);
+    slider(panel, { id: 'gd-a', label: 'step size α', min: 0.005, max: 2, step: 0.005, value: S.alpha, f: v => fmt(v, 3), onInput: v => { S.alpha = v; rebuild(); } });
+    slider(panel, { id: 'gd-k', label: 'gradient steps per iteration', min: 1, max: 20, step: 1, value: S.inner, f: v => String(v), onInput: v => { S.inner = v; rebuild(); } });
+    slider(panel, { id: 'gd-th', label: 'initial rotation θ₀', min: -90, max: 90, step: 5, value: S.th0, f: v => v + '°', onInput: v => { S.th0 = v; rebuild(); } });
+    check(panel, { id: 'gd-ar', label: 'Show residuals f(xᵢ) → yᵢ', checked: true, onChange: v => { S.arrows = v; cv.redraw(); } });
+    const rd = readout(panel);
+    legend(panel, [[tok('--accent'), 'gradient-based ICP'], [tok('--slate'), 'Procrustes-ICP', true]]);
+    note(panel, 'E is averaged over the N pairs so that α does not depend on N. Rotation and scale act about the source centroid, which keeps the parameters on a similar scale.');
+    rebuild();
+    return () => { cancelAnimationFrame(S.anim); cv.dispose(); ch.dispose(); };
+  }
+});
+
+/* 7 — ICP in 3D */
+DEMOS.push({
+  id: 'icp3d', title: 'ICP in 3D', note: 'Noise, outliers, partial scans',
+  lead: 'The same algorithm aligns 3D point clouds. Real scans add noise, outliers and missing parts. Pairing from the target to the source and trimming the worst pairs keep the estimate stable.',
+  tryText: ['Press ', 'Run', ', then switch on outliers or a partial scan and compare plain ICP with trimmed ICP.'],
+  mount(stage, panel) {
+    const V = viewer(stage, { cam: [2.6, -5.6, 2.1], target: [0.3, 0, 0] });
+    const X = humanCloud(650, 7);
+    const src = pointsObject(tok('--src'), 0.034), tgt = pointsObject(tok('--accent'), 0.034), outl = pointsObject(tok('--muted'), 0.03), links = segObject(tok('--muted'), 0.45);
+    V.scene.add(src, tgt, outl, links);
+    const tag = h('div', { class: 'tag' }); stage.append(tag);
+    const S = { seed: 4, noise: 0.01, outliers: false, partial: false, trim: 0, init: 'centroid', links: true, f: null, j: 0, rms: [], running: false, done: false, timer: 0 };
+    let Y = [], isOut = [], truth = null;
+    function makeTarget() {
+      const R = rng(S.seed * 7919 + 5); let ax = [gauss(R), gauss(R), gauss(R)]; const l = Math.hypot(...ax); ax = ax.map(v => v / l);
+      const Rt = axisAngle(ax, rad(10 + 15 * R())), st = 0.8 + 0.4 * R(), tt = [1.0 + 0.6 * R(), R() * 0.8 - 0.4, R() * 0.5 - 0.25];
+      let P = humanCloud(650, 100 + S.seed); if (S.partial) P = P.filter(p => p[0] < 0.18);
+      const Rn = rng(S.seed * 31 + 7);
+      Y = P.map(p => { const r = M3.mv(Rt, p); return [st * r[0] + tt[0] + S.noise * gauss(Rn), st * r[1] + tt[1] + S.noise * gauss(Rn), st * r[2] + tt[2] + S.noise * gauss(Rn)]; }); isOut = Y.map(() => false);
+      if (S.outliers) { const lo = [0, 1, 2].map(d => Math.min(...Y.map(p => p[d])) - 0.3), hi = [0, 1, 2].map(d => Math.max(...Y.map(p => p[d])) + 0.3); const n = Math.round(0.15 * Y.length); for (let k = 0; k < n; k++) { Y.push([0, 1, 2].map(d => lo[d] + (hi[d] - lo[d]) * Rn())); isOut.push(true); } }
+      truth = { R: Rt, s: st, t: tt };
+      const c = [0, 1, 2].map(d => Y.reduce((a, p) => a + p[d], 0) / Y.length); V.controls.target.set(...c); V.camera.position.set(c[0] + 1.5, c[1] - 3.7, c[2] + 1.1); V.controls.update();
+      tgt.setPts(Y.filter((_, i) => !isOut[i])); outl.setPts(Y.filter((_, i) => isOut[i]));
+    }
+    const apply = (f, p) => { const r = M3.mv(f.R, p); return [f.s * r[0] + f.t[0], f.s * r[1] + f.t[1], f.s * r[2] + f.t[2]]; };
+    function reset() {
+      S.running = false; clearTimeout(S.timer);
+      const mx = [0, 1, 2].map(d => X.reduce((a, p) => a + p[d], 0) / X.length), my = [0, 1, 2].map(d => Y.reduce((a, p) => a + p[d], 0) / Y.length);
+      S.f = { R: M3.I(), s: 1, t: S.init === 'centroid' ? my.map((v, d) => v - mx[d]) : [0, 0, 0] }; S.j = 0; S.rms = []; S.done = false; S.pairs = null; show();
+    }
+    function iterate() {
+      const FX = X.map(p => apply(S.f, p)); const pairs = [];
+      for (let i = 0; i < Y.length; i++) { let bj = 0, bd = Infinity; const y = Y[i]; for (let j = 0; j < FX.length; j++) { const a = FX[j], d = (a[0] - y[0]) ** 2 + (a[1] - y[1]) ** 2 + (a[2] - y[2]) ** 2; if (d < bd) { bd = d; bj = j; } } pairs.push([bj, i, bd]); }
+      pairs.sort((a, b) => a[2] - b[2]); const keep = pairs.slice(0, Math.max(10, Math.round(pairs.length * (1 - S.trim / 100))));
+      const rms = Math.sqrt(keep.reduce((a, p) => a + p[2], 0) / keep.length); S.rms.push(rms); S.pairs = keep;
+      if (S.rms.length > 1 && Math.abs(S.rms[S.rms.length - 2] - rms) < 1e-5 || S.j >= 80) { S.done = true; show(); return; }
+      S.f = procrustes3(keep.map(p => X[p[0]]), keep.map(p => Y[p[1]])); S.j++; show();
+    }
+    function show() {
+      const FX = X.map(p => apply(S.f, p)); src.setPts(FX);
+      const L = []; if (S.links && S.pairs) S.pairs.forEach((p, k) => { if (k % 6 === 0) { const a = FX[p[0]], b = Y[p[1]]; L.push(...a, ...b); } }); links.setSegs(L); links.visible = S.links;
+      const Rerr = rotAngle(M3.mul(M3.T(truth.R), S.f.R));
+      const c0 = [0, 0.05, 0.2], ce = apply(S.f, c0), ct = apply(truth, c0);
+      rd.set([['iteration j', String(S.j)], ['RMS (kept pairs)', S.rms.length ? fmt(S.rms[S.rms.length - 1], 4) : '—'], ['scale s', fmt(S.f.s, 3)], ['true scale', fmt(truth.s, 3)], ['rotation error', fmt(Rerr, 2) + '°'], ['position error', fmt(Math.hypot(ce[0] - ct[0], ce[1] - ct[1], ce[2] - ct[2]), 3)]]);
+      ch.draw([{ data: S.rms.slice(), color: tok('--accent') }], { log: true, floor: 1e-4, xlabel: 'iteration j', xmin: 0, xmax: Math.max(5, S.rms.length - 1), xticks: [0, Math.max(5, S.rms.length - 1)], ytop: 1 });
+      tag.textContent = `iteration j = ${S.j}` + (S.done ? ' · converged' : '');
+      runB.textContent = S.running ? 'Pause' : 'Run'; runB.disabled = S.done; stepB.disabled = S.done || S.running;
+      if (S.done) {
+        const head = S.j >= 80 ? 'Stopped after 80 iterations without converging' : `Converged after ${S.j} iterations`;
+        vd.textContent = Rerr < 3 ? `${head}; the rotation is within ${fmt(Rerr, 1)}° of the truth.` : `${head}, but the rotation is off by ${fmt(Rerr, 0)}°.` + (S.outliers && S.trim === 0 ? ' The outliers pull the estimate towards them: trim the worst pairs.' : S.trim > 0 ? ' Trimming also discards valid pairs, and ICP has settled in a local minimum: try a smaller trim or a new target.' : ' ICP has settled in a local minimum.');
+      }
+      vd.hidden = !S.done;
+    }
+    function run() { if (S.running) { S.running = false; clearTimeout(S.timer); show(); return; } S.running = true; const loop = () => { if (!S.running) return; iterate(); if (S.done) { S.running = false; show(); return; } S.timer = setTimeout(loop, reduced() ? 0 : 90); }; loop(); }
+    const rebuild = () => { makeTarget(); reset(); };
+    groupTitle(panel, 'Iterate');
+    const r1 = h('div', { class: 'row' }); panel.append(r1);
+    const runB = button(r1, 'Run', run, true); const stepB = button(r1, 'Step', () => { if (!S.done) iterate(); }); button(r1, 'Reset', reset);
+    const vd = verdict(panel); vd.hidden = true;
+    const chHost = h('div'); panel.append(chHost); const ch = makeChart(chHost, { height: 110 });
+    const rd = readout(panel);
+    groupTitle(panel, 'Target scan');
+    button(panel, 'New random target', () => { S.seed++; rebuild(); });
+    slider(panel, { id: 'i3-noise', label: 'noise σ', min: 0, max: 0.04, step: 0.002, value: S.noise, f: v => fmt(v, 3), onInput: v => { S.noise = v; rebuild(); } });
+    check(panel, { id: 'i3-out', label: 'Add 15% outliers', checked: false, onChange: v => { S.outliers = v; rebuild(); } });
+    check(panel, { id: 'i3-part', label: 'Partial scan (left arm missing)', checked: false, onChange: v => { S.partial = v; rebuild(); } });
+    groupTitle(panel, 'ICP options');
+    seg(panel, { id: 'i3-init', options: [['centroid', 'align centroids'], ['identity', 'R = I, t = 0']], value: S.init, onChange: v => { S.init = v; reset(); } });
+    slider(panel, { id: 'i3-trim', label: 'trim the worst pairs', min: 0, max: 40, step: 5, value: S.trim, f: v => v + '%', onInput: v => { S.trim = v; reset(); } });
+    check(panel, { id: 'i3-links', label: 'Show correspondences', checked: true, onChange: v => { S.links = v; show(); } });
+    legend(panel, [[tok('--src'), 'source X'], [tok('--accent'), 'target scan Y'], [tok('--muted'), 'outliers']]);
+    rebuild();
+    return () => { S.running = false; clearTimeout(S.timer); V.dispose(); ch.dispose(); };
+  }
+});
+
+/* ───────────── router ───────────── */
+const nav = document.getElementById('nav'), main = document.getElementById('main');
+DEMOS.forEach(d => nav.append(h('a', { href: '#' + d.id, 'data-id': d.id }, d.title, h('small', {}, d.note))));
+let cleanup = null;
+function show() {
+  const id = (location.hash || '').slice(1); const d = DEMOS.find(x => x.id === id) || DEMOS[0];
+  if (cleanup) { try { cleanup(); } catch (e) { console.error(e); } cleanup = null; }
+  nav.querySelectorAll('a').forEach(a => a.setAttribute('aria-current', a.dataset.id === d.id ? 'page' : 'false'));
+  const stage = h('div', { class: 'stage', id: 'stage' }), panel = h('aside', { class: 'panel', 'aria-label': 'Controls' });
+  const [pre, em, post] = d.tryText;
+  main.replaceChildren(
+    h('div', { class: 'demo-head' }, h('h2', {}, d.title), h('p', {}, d.lead), h('p', { class: 'try' }, pre, h('b', {}, em), post)),
+    h('div', { class: 'work' }, stage, panel)
+  );
+  try { cleanup = d.mount(stage, panel); } catch (e) { console.error(e); stage.append(h('p', { class: 'err' }, 'This demo could not start: ' + e.message)); }
+}
+addEventListener('hashchange', show);
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change', show);
+new MutationObserver(show).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+show();
+</script>
+
+</body></html>

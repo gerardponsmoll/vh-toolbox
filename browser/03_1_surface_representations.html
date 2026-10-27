@@ -1,0 +1,965 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<meta name="claude:viewport-fit-sides" content="cover">
+<title>Surface Representations Lab</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;600&family=Source+Serif+4:opsz,wght@8..60,600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: lab shell — demo list on the left, one live demo at a time (stage + control panel). Tübingen red marks what you can act on. */
+:root{
+  --bg:#ffffff; --panel:#f5f6f7; --ink:#1d262e; --muted:#5d6872; --line:#e2e5e9;
+  --accent:#a51e37; --accent-ink:#ffffff; --gold:#8f7b3c; --slate:#3e5566;
+  --surface:#c9ced4; --canvas:#ffffff; --grid:#eef0f2;
+  --font-body:'Source Sans 3',system-ui,-apple-system,'Segoe UI',sans-serif;
+  --font-head:'Source Serif 4',Georgia,'Times New Roman',serif;
+  --font-mono:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#121519; --panel:#1a1f24; --ink:#e6eaee; --muted:#9aa5af; --line:#2a3138;
+  --accent:#e0566f; --accent-ink:#121519; --gold:#d4c28a; --slate:#9fb6c8;
+  --surface:#8d959d; --canvas:#121519; --grid:#1d2329; color-scheme:dark;
+}}
+:root[data-theme="dark"]{
+  --bg:#121519; --panel:#1a1f24; --ink:#e6eaee; --muted:#9aa5af; --line:#2a3138;
+  --accent:#e0566f; --accent-ink:#121519; --gold:#d4c28a; --slate:#9fb6c8;
+  --surface:#8d959d; --canvas:#121519; --grid:#1d2329; color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{background:var(--bg);color:var(--ink);font-family:var(--font-body);font-size:16px;line-height:1.5;-webkit-font-smoothing:antialiased}
+.top{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;padding-block:14px;padding-left:max(18px,env(safe-area-inset-left,0px));padding-right:max(18px,env(safe-area-inset-right,0px));border-bottom:1px solid var(--line)}
+.top h1{font-family:var(--font-head);font-weight:600;font-size:1.3rem;margin:0}
+.top .sub{color:var(--muted);font-size:.9rem}
+.shell{display:grid;grid-template-columns:250px minmax(0,1fr);min-height:calc(100% - 56px)}
+nav.demos{border-right:1px solid var(--line);padding-block:12px;padding-left:max(10px,env(safe-area-inset-left,0px));padding-right:10px}
+nav.demos a{display:block;padding:9px 12px;border-radius:8px;color:var(--ink);text-decoration:none;font-size:.95rem;line-height:1.3}
+nav.demos a small{display:block;color:var(--muted);font-size:.78rem;margin-top:2px}
+nav.demos a:hover{background:var(--panel)}
+nav.demos a[aria-current="page"]{background:var(--panel);color:var(--accent);font-weight:600}
+nav.demos a[aria-current="page"] small{font-weight:400}
+main{padding-block:18px 28px;padding-left:22px;padding-right:max(18px,env(safe-area-inset-right,0px));min-width:0}
+.demo-head{max-width:78ch}
+.demo-head h2{font-family:var(--font-head);font-weight:600;font-size:1.65rem;line-height:1.2;margin:0;text-wrap:balance}
+.demo-head p{margin:.4rem 0 0;color:var(--muted)}
+.demo-head p.try{color:var(--ink)}
+.demo-head p.try b{color:var(--accent);font-weight:600}
+.work{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:18px;margin-top:16px;align-items:start}
+.stage{position:relative;background:var(--canvas);border:1px solid var(--line);border-radius:12px;overflow:hidden;height:min(68vh,620px);min-height:340px;touch-action:none}
+.stage canvas{display:block}
+.stage.split{display:grid;grid-template-columns:1fr 1fr}
+.stage.split>div{position:relative;min-width:0;min-height:0}
+.stage.split>div+div{border-left:1px solid var(--line)}
+.stage.stack{display:grid;grid-template-rows:68fr 32fr}
+.stage.stack>div{position:relative;min-height:0}
+.stage.stack>div+div{border-top:1px solid var(--line)}
+.stage .tag{position:absolute;left:12px;top:10px;font-size:.78rem;color:var(--muted);background:color-mix(in srgb,var(--canvas) 85%,transparent);padding:2px 8px;border-radius:6px;pointer-events:none;z-index:2}
+.stage .hint{position:absolute;right:12px;bottom:10px;font-size:.78rem;color:var(--muted);pointer-events:none;z-index:2}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px;display:flex;flex-direction:column;gap:14px;min-width:0}
+.ctl label{display:flex;justify-content:space-between;gap:8px;font-size:.88rem;color:var(--ink);margin-bottom:4px}
+.ctl label output{font-family:var(--font-mono);font-size:.8rem;color:var(--muted)}
+input[type=range]{width:100%;accent-color:var(--accent)}
+.seg{display:flex;flex-wrap:wrap;gap:6px}
+.seg button,.btn{font:inherit;font-size:.86rem;border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:7px;padding:6px 10px;cursor:pointer}
+.seg button[aria-pressed="true"]{border-color:var(--accent);color:var(--accent);font-weight:600}
+.btn:hover,.seg button:hover{border-color:var(--accent)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);font-weight:600}
+.btn.primary:hover{filter:brightness(1.08)}
+.row{display:flex;gap:8px;flex-wrap:wrap}
+.chk{display:flex;align-items:center;gap:8px;font-size:.88rem;cursor:pointer}
+.chk input{accent-color:var(--accent);width:16px;height:16px}
+.group-title{font-size:.72rem;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin:2px 0 -6px}
+.read{font-family:var(--font-mono);font-size:.8rem;background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:10px 12px;display:grid;grid-template-columns:auto minmax(0,1fr);gap:4px 12px;overflow-x:auto}
+.read dt{color:var(--muted)}
+.read dd{margin:0;color:var(--ink);white-space:pre-wrap;overflow-wrap:anywhere}
+.read .full{grid-column:1/-1}
+.read dd.full{margin:0 0 4px 10px}
+.verdict{font-size:.92rem;padding:8px 12px;border-radius:8px;background:var(--bg);border:1px solid var(--line)}
+.verdict b{color:var(--accent)}
+.mini{width:100%;aspect-ratio:1/1;max-width:100%;background:var(--canvas);border:1px solid var(--line);border-radius:8px;display:block}
+.math{font-family:var(--font-head);font-style:italic}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.err{padding:20px;color:var(--muted)}
+@media (max-width:980px){.work{grid-template-columns:minmax(0,1fr)}}
+@media (max-width:760px){
+  .shell{grid-template-columns:minmax(0,1fr)}
+  nav.demos{border-right:none;border-bottom:1px solid var(--line);display:flex;gap:6px;overflow-x:auto;padding-right:max(10px,env(safe-area-inset-right,0px))}
+  nav.demos a{white-space:nowrap;flex:0 0 auto}
+  nav.demos a small{display:none}
+  main{padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+  .stage{height:56vh}
+  .stage.split{grid-template-columns:1fr;grid-template-rows:1fr 1fr;height:80vh}
+  .stage.split>div+div{border-left:none;border-top:1px solid var(--line)}
+}
+@media (prefers-reduced-motion:reduce){*{scroll-behavior:auto}}
+</style>
+
+<header class="top">
+  <h1>Surface Representations Lab</h1>
+  <span class="sub">Virtual Humans · Lecture 3.1 · interactive companions to the slides</span>
+</header>
+<div class="shell">
+  <nav class="demos" id="nav" aria-label="Demos"></nav>
+  <main id="main"><p class="err">Loading the 3D engine…</p></main>
+</div>
+
+<script type="importmap">
+{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"}}
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { MarchingCubes } from 'three/addons/objects/MarchingCubes.js';
+import { mergeVertices } from 'three/addons/utils/BufferGeometryUtils.js';
+
+/* ───────────── helpers ───────────── */
+const tok = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+function h(tag, attrs = {}, ...kids) {
+  const e = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs)) {
+    if (k === 'class') e.className = v;
+    else if (k.startsWith('on') && typeof v === 'function') e.addEventListener(k.slice(2), v);
+    else if (v !== false && v != null) e.setAttribute(k, v === true ? '' : v);
+  }
+  for (const k of kids.flat()) { if (k == null) continue; e.append(k.nodeType ? k : document.createTextNode(String(k))); }
+  return e;
+}
+const fmt = (v, d = 2) => (Math.abs(v) < 0.5 * Math.pow(10, -d) ? 0 : v).toFixed(d);
+const clamp = (x, a, b) => Math.min(b, Math.max(a, x));
+
+function slider(panel, { id, label, min, max, step, value, f = v => v, onInput }) {
+  const out = h('output', { for: id }, f(value));
+  const inp = h('input', { type: 'range', id, min, max, step, value });
+  inp.addEventListener('input', () => { const v = parseFloat(inp.value); out.textContent = f(v); onInput(v); });
+  const wrap = h('div', { class: 'ctl' }, h('label', { for: id }, h('span', {}, label), out), inp);
+  panel.append(wrap);
+  return { wrap, set(v) { inp.value = v; out.textContent = f(v); }, get value() { return parseFloat(inp.value); } };
+}
+function seg(panel, { id, label, options, value, onChange }) {
+  const box = h('div', { class: 'seg', role: 'group', 'aria-label': label, id });
+  const btns = options.map(([val, text]) => {
+    const b = h('button', { type: 'button', 'aria-pressed': String(val === value) }, text);
+    b.addEventListener('click', () => { btns.forEach(x => x.setAttribute('aria-pressed', 'false')); b.setAttribute('aria-pressed', 'true'); onChange(val); });
+    box.append(b); return b;
+  });
+  const wrap = h('div', { class: 'ctl' }, label ? h('label', {}, h('span', {}, label)) : null, box);
+  panel.append(wrap);
+  return { wrap, set(val) { btns.forEach((b, i) => b.setAttribute('aria-pressed', String(options[i][0] === val))); } };
+}
+function check(panel, { id, label, checked, onChange }) {
+  const inp = h('input', { type: 'checkbox', id }); inp.checked = !!checked;
+  inp.addEventListener('change', () => onChange(inp.checked));
+  const wrap = h('label', { class: 'chk', for: id }, inp, label);
+  panel.append(wrap); return { wrap, input: inp };
+}
+function button(parent, label, onClick, primary = false) {
+  const b = h('button', { type: 'button', class: 'btn' + (primary ? ' primary' : '') }, label);
+  b.addEventListener('click', onClick); parent.append(b); return b;
+}
+function readout(panel) {
+  const dl = h('dl', { class: 'read' }); panel.append(dl);
+  return { el: dl, set(rows) { dl.replaceChildren(...rows.flatMap(([k, v]) => { const long = String(v).includes('\n') || String(v).length > 20; return [h('dt', { class: long ? 'full' : null }, k), h('dd', { class: long ? 'full' : null }, v)]; })); } };
+}
+function verdict(panel) { const d = h('div', { class: 'verdict' }); panel.append(d); return d; }
+function groupTitle(panel, t) { panel.append(h('div', { class: 'group-title' }, t)); }
+
+function srgb(hex) { const c = new THREE.Color(hex); const o = {}; c.getRGB(o, THREE.SRGBColorSpace); return new THREE.Vector3(o.r, o.g, o.b); }
+
+/* three.js viewer with orbit controls, z-up like the slides */
+function viewer(stage, { cam = [3.5, -4.5, 2.8], target = [0, 0, 0] } = {}) {
+  const renderer = new THREE.WebGLRenderer({ antialias: true });
+  renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+  stage.append(renderer.domElement);
+  const scene = new THREE.Scene();
+  scene.background = new THREE.Color(tok('--canvas'));
+  const camera = new THREE.PerspectiveCamera(38, 1, 0.01, 200);
+  camera.up.set(0, 0, 1); camera.position.set(...cam);
+  const controls = new OrbitControls(camera, renderer.domElement);
+  controls.target.set(...target); controls.enableDamping = true; controls.update();
+  scene.add(new THREE.HemisphereLight(0xffffff, 0x7d838a, 1.5));
+  const d1 = new THREE.DirectionalLight(0xffffff, 1.7); d1.position.set(3, -4, 6); scene.add(d1);
+  const d2 = new THREE.DirectionalLight(0xffffff, 0.45); d2.position.set(-5, 3, -2); scene.add(d2);
+  const ro = new ResizeObserver(() => {
+    const w = Math.max(1, stage.clientWidth), hh = Math.max(1, stage.clientHeight);
+    renderer.setSize(w, hh, false); renderer.domElement.style.width = '100%'; renderer.domElement.style.height = '100%';
+    camera.aspect = w / hh; camera.zoom = Math.min(1, (w / hh) * 1.25); camera.updateProjectionMatrix();
+  });
+  ro.observe(stage);
+  let raf = 0, frame = null;
+  const loop = () => { raf = requestAnimationFrame(loop); controls.update(); if (frame) frame(); renderer.render(scene, camera); };
+  loop();
+  return {
+    renderer, scene, camera, controls,
+    set onFrame(f) { frame = f; },
+    fit(pos, tgt = [0, 0, 0]) { camera.position.set(...pos); controls.target.set(...tgt); controls.update(); },
+    dispose() {
+      cancelAnimationFrame(raf); ro.disconnect(); controls.dispose();
+      scene.traverse(o => { if (o.geometry) o.geometry.dispose(); if (o.material) [].concat(o.material).forEach(m => m.dispose()); });
+      renderer.dispose(); renderer.domElement.remove();
+    }
+  };
+}
+/* click-vs-drag detector for picking on an orbit-controlled canvas */
+function onClick(el, cb) {
+  let sx = 0, sy = 0;
+  const down = e => { sx = e.clientX; sy = e.clientY; };
+  const up = e => { if (Math.hypot(e.clientX - sx, e.clientY - sy) < 5) cb(e); };
+  el.addEventListener('pointerdown', down); el.addEventListener('pointerup', up);
+  return () => { el.removeEventListener('pointerdown', down); el.removeEventListener('pointerup', up); };
+}
+function ndc(e, el) { const r = el.getBoundingClientRect(); return new THREE.Vector2(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1); }
+
+/* 2D canvas with a world→screen mapping that keeps aspect ratio */
+function canvas2d(host, draw, extent = { x0: -2, x1: 2, y0: -2, y1: 2 }, stretch = false) {
+  const c = h('canvas'); host.append(c);
+  const ctx = c.getContext('2d');
+  const S = { W: 0, H: 0, k: 1, ox: 0, oy: 0 };
+  function layout() {
+    const r = host.getBoundingClientRect(); const dpr = Math.min(devicePixelRatio, 2);
+    S.W = r.width; S.H = r.height;
+    c.width = Math.max(1, Math.round(S.W * dpr)); c.height = Math.max(1, Math.round(S.H * dpr));
+    c.style.width = S.W + 'px'; c.style.height = S.H + 'px'; ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const ew = extent.x1 - extent.x0, eh = extent.y1 - extent.y0, pad = 18;
+    S.k = Math.min((S.W - 2 * pad) / ew, (S.H - 2 * pad) / eh); S.ky = S.k;
+    if (stretch) { S.k = (S.W - 2 * pad) / ew; S.ky = (S.H - 2 * pad) / eh; }
+    S.ox = (S.W - S.k * ew) / 2 - S.k * extent.x0; S.oy = (S.H + S.ky * eh) / 2 + S.ky * extent.y0;
+  }
+  const api = {
+    canvas: c, ctx, S,
+    sx: x => S.ox + S.k * x, sy: y => S.oy - S.ky * y,
+    wx: px => (px - S.ox) / S.k, wy: py => (S.oy - py) / S.ky,
+    redraw() { if (S.W) { ctx.clearRect(0, 0, S.W, S.H); draw(api); } },
+    dispose() { ro.disconnect(); c.remove(); }
+  };
+  const ro = new ResizeObserver(() => { layout(); api.redraw(); }); ro.observe(host);
+  return api;
+}
+/* draggable points on a 2D canvas */
+function draggable(cv, getPts, onMove, radius = 12) {
+  let idx = -1;
+  const pos = e => { const r = cv.canvas.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; };
+  const down = e => {
+    const [px, py] = pos(e); const pts = getPts(); let best = -1, bd = radius;
+    pts.forEach((p, i) => { const d = Math.hypot(cv.sx(p[0]) - px, cv.sy(p[1]) - py); if (d < bd) { bd = d; best = i; } });
+    if (best >= 0) { idx = best; cv.canvas.setPointerCapture(e.pointerId); e.preventDefault(); }
+  };
+  const move = e => {
+    const [px, py] = pos(e);
+    if (idx >= 0) { onMove(idx, [cv.wx(px), cv.wy(py)]); cv.redraw(); return; }
+    const pts = getPts(); const near = pts.some(p => Math.hypot(cv.sx(p[0]) - px, cv.sy(p[1]) - py) < radius);
+    cv.canvas.style.cursor = near ? 'grab' : 'default';
+  };
+  const up = () => { idx = -1; };
+  cv.canvas.addEventListener('pointerdown', down); cv.canvas.addEventListener('pointermove', move);
+  cv.canvas.addEventListener('pointerup', up); cv.canvas.addEventListener('pointercancel', up);
+}
+function dot(ctx, x, y, r, fill, stroke, lw = 1.5) { ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); if (fill) { ctx.fillStyle = fill; ctx.fill(); } if (stroke) { ctx.lineWidth = lw; ctx.strokeStyle = stroke; ctx.stroke(); } }
+function arrow(ctx, x0, y0, x1, y1, color, lw = 2) {
+  const a = Math.atan2(y1 - y0, x1 - x0), L = 9;
+  ctx.strokeStyle = color; ctx.fillStyle = color; ctx.lineWidth = lw;
+  ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x1 - L * Math.cos(a - 0.4), y1 - L * Math.sin(a - 0.4)); ctx.lineTo(x1 - L * Math.cos(a + 0.4), y1 - L * Math.sin(a + 0.4)); ctx.closePath(); ctx.fill();
+}
+/* marching squares on a grid of values → list of segments [[x0,y0,x1,y1],...] in world units */
+function marchingSquares(F, n, m, X, Y, iso = 0) {
+  const segs = [];
+  const lerp = (a, b, fa, fb) => a + (b - a) * ((iso - fa) / (fb - fa));
+  for (let j = 0; j < m - 1; j++) for (let i = 0; i < n - 1; i++) {
+    const f00 = F[j * n + i], f10 = F[j * n + i + 1], f11 = F[(j + 1) * n + i + 1], f01 = F[(j + 1) * n + i];
+    const x0 = X[i], x1 = X[i + 1], y0 = Y[j], y1 = Y[j + 1];
+    const c = (f00 < iso ? 1 : 0) | (f10 < iso ? 2 : 0) | (f11 < iso ? 4 : 0) | (f01 < iso ? 8 : 0);
+    if (c === 0 || c === 15) continue;
+    const eB = () => [lerp(x0, x1, f00, f10), y0], eR = () => [x1, lerp(y0, y1, f10, f11)], eT = () => [lerp(x0, x1, f01, f11), y1], eL = () => [x0, lerp(y0, y1, f00, f01)];
+    const add = (a, b) => segs.push([a[0], a[1], b[0], b[1]]);
+    const center = (f00 + f10 + f11 + f01) / 4 < iso;
+    switch (c) {
+      case 1: case 14: add(eL(), eB()); break;
+      case 2: case 13: add(eB(), eR()); break;
+      case 3: case 12: add(eL(), eR()); break;
+      case 4: case 11: add(eR(), eT()); break;
+      case 6: case 9: add(eB(), eT()); break;
+      case 7: case 8: add(eL(), eT()); break;
+      case 5: if (center) { add(eL(), eT()); add(eB(), eR()); } else { add(eL(), eB()); add(eR(), eT()); } break;
+      case 10: if (center) { add(eL(), eB()); add(eR(), eT()); } else { add(eL(), eT()); add(eB(), eR()); } break;
+    }
+  }
+  return segs;
+}
+function drawSegs(cv, segs, color, lw) {
+  const { ctx } = cv; ctx.strokeStyle = color; ctx.lineWidth = lw; ctx.lineCap = 'round'; ctx.beginPath();
+  for (const s of segs) { ctx.moveTo(cv.sx(s[0]), cv.sy(s[1])); ctx.lineTo(cv.sx(s[2]), cv.sy(s[3])); }
+  ctx.stroke();
+}
+function sampleGrid(f, x0, x1, y0, y1, n, m) {
+  const X = [], Y = [], F = new Float32Array(n * m);
+  for (let i = 0; i < n; i++) X.push(x0 + (x1 - x0) * i / (n - 1));
+  for (let j = 0; j < m; j++) Y.push(y0 + (y1 - y0) * j / (m - 1));
+  for (let j = 0; j < m; j++) for (let i = 0; i < n; i++) F[j * n + i] = f(X[i], Y[j]);
+  return { X, Y, F };
+}
+const B = (n, k, t) => { let c = 1; for (let i = 1; i <= k; i++) c = c * (n - k + i) / i; return c * Math.pow(t, k) * Math.pow(1 - t, n - k); };
+function rampColor(k, n) { // gold → red ramp so control point k and basis B_k share a colour
+  const a = new THREE.Color(tok('--gold')), b = new THREE.Color(tok('--accent'));
+  return '#' + a.lerp(b, n === 0 ? 1 : k / n).getHexString();
+}
+
+/* ───────────── demos ───────────── */
+const DEMOS = [];
+
+/* 1 — implicit vs explicit */
+DEMOS.push({
+  id: 'implicit-explicit', title: 'Implicit vs. explicit', note: 'The inside/outside games',
+  lead: 'An implicit surface is the set of points where f(x,y,z) = 0. An explicit surface is generated directly from parameters f(u,v).',
+  tryText: ['Implicit sphere: move the probe and read off f — inside/outside is one evaluation. Now ', 'try to land exactly on the surface', '. Explicit torus: every (u,v) gives a surface point at once, but testing a probe needs a search.'],
+  mount(stage, panel) {
+    const V = viewer(stage, { cam: [3.2, -4.4, 2.6] });
+    const red = new THREE.Color(tok('--accent')), gold = new THREE.Color(tok('--gold')), grey = new THREE.Color(tok('--muted'));
+    const glass = new THREE.MeshStandardMaterial({ color: tok('--surface'), transparent: true, opacity: 0.3, roughness: 0.55, depthWrite: false, side: THREE.DoubleSide });
+    const lineMat = new THREE.LineBasicMaterial({ color: tok('--muted'), transparent: true, opacity: 0.35 });
+    const sphere = new THREE.Group();
+    sphere.add(new THREE.Mesh(new THREE.SphereGeometry(1, 64, 32), glass));
+    sphere.add(new THREE.LineSegments(new THREE.WireframeGeometry(new THREE.SphereGeometry(1, 24, 12)), lineMat));
+    const tf = (u, v) => [(2 + Math.cos(u)) * Math.cos(v), (2 + Math.cos(u)) * Math.sin(v), Math.sin(u)];
+    const tn = (u, v) => [Math.cos(u) * Math.cos(v), Math.cos(u) * Math.sin(v), Math.sin(u)];
+    const torusGeo = (() => { const nu = 48, nv = 96, pos = [], idx = []; for (let i = 0; i <= nu; i++) for (let j = 0; j <= nv; j++) pos.push(...tf(2 * Math.PI * i / nu, 2 * Math.PI * j / nv)); for (let i = 0; i < nu; i++) for (let j = 0; j < nv; j++) { const a = i * (nv + 1) + j, b = a + nv + 1; idx.push(a, b, a + 1, b, b + 1, a + 1); } const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setIndex(idx); g.computeVertexNormals(); return g; })();
+    const torus = new THREE.Group();
+    torus.add(new THREE.Mesh(torusGeo, glass.clone()));
+    const torusWire = (() => { const pts = []; for (let i = 0; i < 12; i++) { const u = 2 * Math.PI * i / 12; for (let j = 0; j < 96; j++) { pts.push(...tf(u, 2 * Math.PI * j / 96), ...tf(u, 2 * Math.PI * (j + 1) / 96)); } } for (let j = 0; j < 24; j++) { const v = 2 * Math.PI * j / 24; for (let i = 0; i < 48; i++) { pts.push(...tf(2 * Math.PI * i / 48, v), ...tf(2 * Math.PI * (i + 1) / 48, v)); } } const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pts, 3)); return g; })();
+    torus.add(new THREE.LineSegments(torusWire, lineMat.clone()));
+    V.scene.add(sphere, torus);
+    const axes = new THREE.AxesHelper(1.6); axes.material.transparent = true; axes.material.opacity = 0.45; V.scene.add(axes);
+    const probe = new THREE.Mesh(new THREE.SphereGeometry(0.065, 24, 16), new THREE.MeshStandardMaterial({ color: red }));
+    const uvPt = new THREE.Mesh(new THREE.SphereGeometry(0.075, 24, 16), new THREE.MeshStandardMaterial({ color: gold }));
+    V.scene.add(probe, uvPt);
+    let cloud = null; const lineGeo = new THREE.BufferGeometry(); const link = new THREE.Line(lineGeo, new THREE.LineDashedMaterial({ color: gold, dashSize: 0.06, gapSize: 0.04 }));
+    V.scene.add(link);
+    const setCloud = (positions, colors, size) => {
+      if (cloud) { V.scene.remove(cloud); cloud.geometry.dispose(); cloud.material.dispose(); cloud = null; }
+      if (!positions) return;
+      const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3)); g.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+      cloud = new THREE.Points(g, new THREE.PointsMaterial({ size, vertexColors: true, sizeAttenuation: true })); V.scene.add(cloud);
+    };
+
+    const S = { mode: 'implicit', p: [0.75, 0.5, 0.25], u: 0.6, v: 4.2, q: [1.96, -0.39, 0.9] };
+    seg(panel, { id: 'ie-mode', label: 'Surface', value: 'implicit', options: [['implicit', 'Implicit sphere'], ['explicit', 'Explicit torus']], onChange: m => { S.mode = m; setMode(); } });
+    const implicitBox = h('div', { style: 'display:flex;flex-direction:column;gap:14px' });
+    const explicitBox = h('div', { style: 'display:flex;flex-direction:column;gap:14px' });
+    panel.append(implicitBox, explicitBox);
+
+    // implicit controls
+    groupTitle(implicitBox, 'Probe point p');
+    const sl = ['x', 'y', 'z'].map((ax, i) => slider(implicitBox, { id: 'ie-p' + ax, label: ax, min: -1.6, max: 1.6, step: 0.01, value: S.p[i], f: v => fmt(v), onInput: v => { S.p[i] = v; update(); } }));
+    const r1 = readout(implicitBox); const v1 = verdict(implicitBox);
+    const rowI = h('div', { class: 'row' }); implicitBox.append(rowI);
+    button(rowI, 'Guess 1,000 random points', () => {
+      const pos = [], col = []; let hits = 0;
+      for (let i = 0; i < 1000; i++) {
+        const p = [Math.random() * 3.2 - 1.6, Math.random() * 3.2 - 1.6, Math.random() * 3.2 - 1.6];
+        const f = p[0] * p[0] + p[1] * p[1] + p[2] * p[2] - 1; pos.push(...p);
+        const c = Math.abs(f) < 0.02 ? (hits++, gold) : f < 0 ? red : grey; col.push(c.r, c.g, c.b);
+      }
+      setCloud(pos, col, 0.045); S.hits = hits; update();
+    }, true);
+    button(rowI, 'Clear', () => { setCloud(null); S.hits = null; update(); });
+
+    // explicit controls
+    groupTitle(explicitBox, 'Parameters (u, v) → point f(u,v)');
+    slider(explicitBox, { id: 'ie-u', label: 'u', min: 0, max: 6.28, step: 0.01, value: S.u, f: v => fmt(v), onInput: v => { S.u = v; update(); } });
+    slider(explicitBox, { id: 'ie-v', label: 'v', min: 0, max: 6.28, step: 0.01, value: S.v, f: v => fmt(v), onInput: v => { S.v = v; update(); } });
+    const r2 = readout(explicitBox);
+    const rowE = h('div', { class: 'row' }); explicitBox.append(rowE);
+    button(rowE, 'Sample 600 points', () => { const pos = [], col = []; for (let i = 0; i < 600; i++) { const p = tf(Math.random() * 6.283, Math.random() * 6.283); pos.push(...p); col.push(gold.r, gold.g, gold.b); } setCloud(pos, col, 0.06); }, true);
+    button(rowE, 'Clear', () => { setCloud(null); });
+    groupTitle(explicitBox, 'Inside test for probe q');
+    ['x', 'y', 'z'].forEach((ax, i) => slider(explicitBox, { id: 'ie-q' + ax, label: ax, min: -3.2, max: 3.2, step: 0.01, value: S.q[i], f: v => fmt(v), onInput: v => { S.q[i] = v; S.search = null; update(); } }));
+    button(explicitBox, 'Search (u, v) to test q', () => {
+      let best = 1e9, bu = 0, bv = 0; const N = 200;
+      for (let i = 0; i < N; i++) for (let j = 0; j < N; j++) { const u = 2 * Math.PI * i / N, v = 2 * Math.PI * j / N, p = tf(u, v); const d = (p[0] - S.q[0]) ** 2 + (p[1] - S.q[1]) ** 2 + (p[2] - S.q[2]) ** 2; if (d < best) { best = d; bu = u; bv = v; } }
+      const c = tf(bu, bv), n = tn(bu, bv); const s = (S.q[0] - c[0]) * n[0] + (S.q[1] - c[1]) * n[1] + (S.q[2] - c[2]) * n[2];
+      S.search = { evals: N * N, c, d: Math.sqrt(best), inside: s < 0 }; update();
+    }, true);
+    const v2 = verdict(explicitBox);
+
+    function setMode() {
+      const imp = S.mode === 'implicit';
+      implicitBox.hidden = !imp; explicitBox.hidden = imp; sphere.visible = imp; torus.visible = !imp; uvPt.visible = !imp;
+      axes.scale.setScalar(imp ? 1 : 2.2); setCloud(null); S.hits = null;
+      V.fit(imp ? [3.2, -4.4, 2.6] : [6.2, -8.4, 5.2]); update();
+    }
+    function update() {
+      if (S.mode === 'implicit') {
+        const [x, y, z] = S.p, f = x * x + y * y + z * z - 1; probe.position.set(x, y, z);
+        const on = Math.abs(f) < 0.01; probe.material.color.copy(on ? gold : f < 0 ? red : grey);
+        r1.set([['p', `(${fmt(x)}, ${fmt(y)}, ${fmt(z)})`], ['f(p)', `x²+y²+z²−1 = ${fmt(f, 3)}`]]);
+        v1.replaceChildren(on ? h('span', {}, h('b', {}, 'On the surface!'), ' |f| < 0.01 — rare by hand.') : f < 0 ? h('span', {}, h('b', {}, 'Inside'), ' (f < 0) — one evaluation was enough.') : h('span', {}, h('b', {}, 'Outside'), ' (f > 0) — one evaluation was enough.'));
+        if (S.hits != null) v1.append(h('div', { style: 'margin-top:6px;color:var(--muted)' }, `${S.hits} of 1,000 random guesses landed on the surface (|f| < 0.02).`));
+        link.visible = false;
+      } else {
+        const p = tf(S.u, S.v); uvPt.position.set(...p);
+        r2.set([['f(u,v)', `(${fmt(p[0])}, ${fmt(p[1])}, ${fmt(p[2])})`], ['cost', '1 evaluation, always on the surface']]);
+        probe.position.set(...S.q); probe.material.color.copy(red);
+        if (S.search) {
+          const s = S.search; probe.material.color.copy(s.inside ? red : grey);
+          lineGeo.setFromPoints([new THREE.Vector3(...S.q), new THREE.Vector3(...s.c)]); link.computeLineDistances(); link.visible = true;
+          v2.replaceChildren(h('span', {}, h('b', {}, s.inside ? 'Inside' : 'Outside'), ` — but it took ${s.evals.toLocaleString()} evaluations of f(u,v) to find the nearest surface point (distance ${fmt(s.d, 3)}).`));
+        } else { link.visible = false; v2.replaceChildren(h('span', {}, 'Is q inside? There is no formula to plug q into — press ', h('b', {}, 'Search'), '.')); }
+      }
+    }
+    setMode();
+    return () => { setCloud(null); V.dispose(); };
+  }
+});
+
+/* 2 — CSG and distance-function blending (ray-marched) */
+DEMOS.push({
+  id: 'csg', title: 'CSG & blending', note: 'Boolean operations on distance functions',
+  lead: 'With distance functions d₁, d₂, Boolean operations are one line each: union = min, intersection = max, difference = max(d₁, −d₂). A smooth minimum blends the shapes.',
+  tryText: ['Switch the operation and ', 'drag shape B through A', '. Rotate with the mouse. The slice on the right shows the distance values on the plane z = 0.'],
+  mount(stage, panel) {
+    const renderer = new THREE.WebGLRenderer({ antialias: false }); renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5)); stage.append(renderer.domElement);
+    const cam = new THREE.PerspectiveCamera(40, 1, 0.1, 100); cam.up.set(0, 0, 1); cam.position.set(4.2, -4.6, 2.8);
+    const controls = new OrbitControls(cam, renderer.domElement); controls.enableDamping = true; controls.minDistance = 3; controls.maxDistance = 14;
+    const S = { op: 3, k: 0.45, bx: 0.95, shape: 0 };
+    const U = {
+      uRes: { value: new THREE.Vector2(1, 1) }, uCam: { value: new THREE.Vector3() }, uTarget: { value: new THREE.Vector3() },
+      uOp: { value: S.op }, uK: { value: S.k }, uB: { value: new THREE.Vector3(S.bx, 0, 0) }, uShapeB: { value: S.shape },
+      uBg: { value: srgb(tok('--canvas')) }, uColA: { value: srgb(tok('--surface')) }, uColB: { value: srgb(tok('--accent')) }
+    };
+    const mat = new THREE.ShaderMaterial({
+      uniforms: U, depthTest: false, depthWrite: false,
+      vertexShader: `varying vec2 vUv; void main(){ vUv=uv; gl_Position=vec4(position.xy,0.,1.); }`,
+      fragmentShader: `
+precision highp float; varying vec2 vUv;
+uniform vec2 uRes; uniform vec3 uCam, uTarget, uB, uBg, uColA, uColB; uniform int uOp, uShapeB; uniform float uK;
+float sdSphere(vec3 p,float r){return length(p)-r;}
+float sdBox(vec3 p,vec3 b){vec3 q=abs(p)-b;return length(max(q,0.))+min(max(q.x,max(q.y,q.z)),0.);}
+float sdCyl(vec3 p,float r,float h){vec2 d=abs(vec2(length(p.xy),p.z))-vec2(r,h);return min(max(d.x,d.y),0.)+length(max(d,0.));}
+float dA(vec3 p){return sdSphere(p,1.0);}
+float dB(vec3 p){p-=uB; if(uShapeB==0) return sdBox(p,vec3(.68))-.06; if(uShapeB==1) return sdSphere(p,.85); return sdCyl(p,.55,1.35);}
+float smin(float a,float b,float k){float h=clamp(.5+.5*(b-a)/k,0.,1.);return mix(b,a,h)-k*h*(1.-h);}
+float map(vec3 p){float a=dA(p),b=dB(p); if(uOp==0) return min(a,b); if(uOp==1) return max(a,b); if(uOp==2) return max(a,-b); return smin(a,b,uK);}
+vec3 nrm(vec3 p){vec2 e=vec2(1e-3,0.);return normalize(vec3(map(p+e.xyy)-map(p-e.xyy),map(p+e.yxy)-map(p-e.yxy),map(p+e.yyx)-map(p-e.yyx)));}
+void main(){
+  vec2 uv=(vUv*2.-1.)*uRes/min(uRes.x,uRes.y);
+  vec3 ro=uCam, ww=normalize(uTarget-ro), uu=normalize(cross(ww,vec3(0,0,1))), vv=cross(uu,ww);
+  vec3 rd=normalize(uv.x*uu+uv.y*vv+2.75*ww);
+  float t=0.; bool hit=false;
+  for(int i=0;i<160;i++){ float d=map(ro+rd*t); if(d<2e-4){hit=true;break;} t+=d; if(t>40.) break; }
+  vec3 col=uBg;
+  if(hit){
+    vec3 p=ro+rd*t, n=nrm(p); vec3 L=normalize(vec3(.45,-.55,.75));
+    float dif=clamp(dot(n,L),0.,1.), amb=.38+.22*n.z;
+    float a=dA(p), b=dB(p), w;
+    if(uOp==0||uOp==3) w=smoothstep(-.06,.06,b-a); else if(uOp==1) w=smoothstep(-.06,.06,a-b); else w=smoothstep(-.06,.06,a+b);
+    vec3 base=mix(uColB,uColA,w);
+    float spe=pow(clamp(dot(n,normalize(L-rd)),0.,1.),48.)*.35;
+    col=base*(amb+.85*dif)+spe;
+  }
+  gl_FragColor=vec4(col,1.);
+}`
+    });
+    const scene = new THREE.Scene(); scene.add(new THREE.Mesh(new THREE.PlaneGeometry(2, 2), mat));
+    const ocam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+    const ro = new ResizeObserver(() => { const w = Math.max(1, stage.clientWidth), hh = Math.max(1, stage.clientHeight); renderer.setSize(w, hh, false); renderer.domElement.style.width = '100%'; renderer.domElement.style.height = '100%'; U.uRes.value.set(w, hh); }); ro.observe(stage);
+    let raf = 0; const loop = () => { raf = requestAnimationFrame(loop); controls.update(); U.uCam.value.copy(cam.position); U.uTarget.value.copy(controls.target); renderer.render(scene, ocam); }; loop();
+    stage.append(h('div', { class: 'tag' }, 'A = sphere (grey)   ·   B (red)'));
+
+    seg(panel, { id: 'csg-op', label: 'Operation', value: S.op, options: [[0, 'A ∪ B'], [1, 'A ∩ B'], [2, 'A ∖ B'], [3, 'Smooth ∪']], onChange: v => { S.op = v; U.uOp.value = v; kSl.wrap.hidden = v !== 3; upd(); } });
+    const kSl = slider(panel, { id: 'csg-k', label: 'Blend radius k', min: 0.02, max: 1.2, step: 0.01, value: S.k, f: v => fmt(v), onInput: v => { S.k = v; U.uK.value = v; upd(); } });
+    seg(panel, { id: 'csg-shape', label: 'Shape B', value: S.shape, options: [[0, 'Box'], [1, 'Sphere'], [2, 'Cylinder']], onChange: v => { S.shape = v; U.uShapeB.value = v; upd(); } });
+    slider(panel, { id: 'csg-bx', label: 'Position of B (x)', min: -2.4, max: 2.4, step: 0.01, value: S.bx, f: v => fmt(v), onInput: v => { S.bx = v; U.uB.value.set(v, 0, 0); upd(); } });
+    const formula = readout(panel);
+    groupTitle(panel, 'Slice z = 0: distance values');
+    const mini = h('canvas', { class: 'mini', width: 240, height: 240 }); panel.append(mini);
+    const mctx = mini.getContext('2d');
+    // CPU versions of the same SDFs for the slice
+    const len = (x, y, z) => Math.hypot(x, y, z);
+    const dA = (x, y, z) => len(x, y, z) - 1;
+    const dB = (x, y, z) => { x -= S.bx; if (S.shape === 0) { const qx = Math.abs(x) - .68, qy = Math.abs(y) - .68, qz = Math.abs(z) - .68; return len(Math.max(qx, 0), Math.max(qy, 0), Math.max(qz, 0)) + Math.min(Math.max(qx, Math.max(qy, qz)), 0) - .06; } if (S.shape === 1) return len(x, y, z) - .85; const dx = Math.abs(Math.hypot(x, y)) - .55, dz = Math.abs(z) - 1.35; return Math.min(Math.max(dx, dz), 0) + Math.hypot(Math.max(dx, 0), Math.max(dz, 0)); };
+    const smin = (a, b, k) => { const hh = clamp(.5 + .5 * (b - a) / k, 0, 1); return b + (a - b) * hh - k * hh * (1 - hh); };
+    const map = (x, y, z) => { const a = dA(x, y, z), b = dB(x, y, z); return S.op === 0 ? Math.min(a, b) : S.op === 1 ? Math.max(a, b) : S.op === 2 ? Math.max(a, -b) : smin(a, b, S.k); };
+    function drawSlice() {
+      const N = 120, img = mctx.createImageData(N, N), acc = new THREE.Color(tok('--accent')), bg = new THREE.Color(tok('--canvas')), ink = new THREE.Color(tok('--ink'));
+      const toS = c => { const o = {}; c.getRGB(o, THREE.SRGBColorSpace); return [o.r * 255, o.g * 255, o.b * 255]; };
+      const A = toS(acc), BG = toS(bg), I = toS(ink);
+      for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
+        const x = -2.6 + 5.2 * i / (N - 1), y = 2.6 - 5.2 * j / (N - 1), f = map(x, y, 0);
+        const band = Math.abs(f / 0.25 - Math.round(f / 0.25)), iso = band < 0.07 ? 0.35 : 0, zero = Math.abs(f) < 0.035 ? 1 : 0;
+        let c = f < 0 ? A.map((a, q) => BG[q] + (a - BG[q]) * Math.min(0.55, 0.18 + (-f) * 0.6)) : BG.slice();
+        const m = Math.max(iso, zero); c = c.map((v, q) => v + (I[q] - v) * m);
+        const o = (j * N + i) * 4; img.data[o] = c[0]; img.data[o + 1] = c[1]; img.data[o + 2] = c[2]; img.data[o + 3] = 255;
+      }
+      const tmp = document.createElement('canvas'); tmp.width = N; tmp.height = N; tmp.getContext('2d').putImageData(img, 0, 0);
+      mctx.imageSmoothingEnabled = true; mctx.drawImage(tmp, 0, 0, mini.width, mini.height);
+    }
+    function upd() {
+      const F = ['f(x) = min(d_A, d_B)', 'f(x) = max(d_A, d_B)', 'f(x) = max(d_A, −d_B)', `f(x) = smin(d_A, d_B; k = ${fmt(S.k)})`][S.op];
+      formula.set([['op', F], ['inside', 'f(x) < 0'], ['normal', 'n = ∇f / |∇f|']]); drawSlice();
+    }
+    kSl.wrap.hidden = S.op !== 3; upd();
+    return () => { cancelAnimationFrame(raf); ro.disconnect(); controls.dispose(); mat.dispose(); renderer.dispose(); renderer.domElement.remove(); };
+  }
+});
+
+/* shared 2D shape for the grid demos */
+const len2 = (x, y) => Math.hypot(x, y);
+function sdSeg(px, py, ax, ay, bx, by) { const pax = px - ax, pay = py - ay, bax = bx - ax, bay = by - ay; const hh = clamp((pax * bax + pay * bay) / (bax * bax + bay * bay), 0, 1); return len2(pax - bax * hh, pay - bay * hh); }
+function sminf(a, b, k) { const hh = clamp(.5 + .5 * (b - a) / k, 0, 1); return b + (a - b) * hh - k * hh * (1 - hh); }
+const blobSDF = (x, y) => {
+  const c1 = len2(x + 0.85, y - 0.05) - 0.72, c2 = len2(x - 0.85, y + 0.1) - 0.6;
+  const neck = sdSeg(x, y, -0.85, 0.05, 0.85, -0.1) - 0.09;
+  const isl = len2(x - 0.15, y - 1.15) - 0.2;
+  return Math.min(sminf(sminf(c1, c2, 0.1), neck, 0.12), isl);
+};
+
+/* 3 — level sets on a grid */
+DEMOS.push({
+  id: 'level-set', title: 'Level sets on a grid', note: 'Sampling, aliasing and narrow bands',
+  lead: 'Instead of a closed-form f, store its values on a grid and interpolate. The surface is where the interpolated values cross zero.',
+  tryText: ['Lower the ', 'grid resolution', ' until the thin neck and the small island disappear (aliasing). Then switch on the narrow band to see how many values you actually need.'],
+  mount(stage, panel) {
+    const S = { n: 14, values: true, band: false, bw: 1.5 };
+    const E = { x0: -2, x1: 2, y0: -1.5, y1: 1.6 };
+    const truth = sampleGrid(blobSDF, E.x0, E.x1, E.y0, E.y1, 240, 200);
+    const truthSegs = marchingSquares(truth.F, 240, 200, truth.X, truth.Y);
+    const cv = canvas2d(stage, draw, E);
+    stage.append(h('div', { class: 'tag' }, 'thin line = true surface   ·   red = reconstructed from the grid'));
+    function draw(cv) {
+      const { ctx } = cv; const n = S.n, m = Math.max(3, Math.round(n * (E.y1 - E.y0) / (E.x1 - E.x0)));
+      const g = sampleGrid(blobSDF, E.x0, E.x1, E.y0, E.y1, n, m); const hx = (E.x1 - E.x0) / (n - 1);
+      ctx.strokeStyle = tok('--grid'); ctx.lineWidth = 1; ctx.beginPath();
+      g.X.forEach(x => { ctx.moveTo(cv.sx(x), cv.sy(E.y0)); ctx.lineTo(cv.sx(x), cv.sy(E.y1)); });
+      g.Y.forEach(y => { ctx.moveTo(cv.sx(E.x0), cv.sy(y)); ctx.lineTo(cv.sx(E.x1), cv.sy(y)); }); ctx.stroke();
+      drawSegs(cv, truthSegs, tok('--muted'), 1);
+      const acc = tok('--accent'), mut = tok('--muted'); let stored = 0;
+      const r = clamp(cv.S.k * hx * 0.12, 2, 5);
+      ctx.font = `${clamp(cv.S.k * hx * 0.2, 9, 12)}px ${tok('--font-mono')}`; ctx.textAlign = 'center';
+      for (let j = 0; j < m; j++) for (let i = 0; i < n; i++) {
+        const f = g.F[j * n + i]; const inBand = Math.abs(f) <= S.bw * hx; if (S.band && !inBand) continue; stored++;
+        const x = cv.sx(g.X[i]), y = cv.sy(g.Y[j]);
+        if (f < 0) dot(ctx, x, y, r, acc); else dot(ctx, x, y, r, null, mut, 1.2);
+        if (S.values && n <= 12) { ctx.fillStyle = f < 0 ? acc : mut; ctx.fillText(fmt(f, 2), x, y - r - 4); }
+      }
+      drawSegs(cv, marchingSquares(g.F, n, m, g.X, g.Y), acc, 2.6);
+      rd.set([['grid', `${n} × ${m} = ${(n * m).toLocaleString()} values`], ['stored', S.band ? `${stored.toLocaleString()} (${Math.round(100 * stored / (n * m))}%) inside band` : 'all of them'], ['in 3D', `n³ grows fast: ${n}³ = ${(n ** 3).toLocaleString()}`]]);
+    }
+    slider(panel, { id: 'ls-n', label: 'Grid resolution n', min: 4, max: 64, step: 1, value: S.n, f: v => v, onInput: v => { S.n = v; cv.redraw(); } });
+    check(panel, { id: 'ls-vals', label: 'Show values (n ≤ 12)', checked: S.values, onChange: v => { S.values = v; cv.redraw(); } });
+    check(panel, { id: 'ls-band', label: 'Store a narrow band only', checked: S.band, onChange: v => { S.band = v; bwSl.wrap.hidden = !v; cv.redraw(); } });
+    const bwSl = slider(panel, { id: 'ls-bw', label: 'Band half-width (cells)', min: 0.5, max: 4, step: 0.1, value: S.bw, f: v => fmt(v, 1), onInput: v => { S.bw = v; cv.redraw(); } });
+    bwSl.wrap.hidden = true;
+    const rd = readout(panel);
+    panel.append(h('p', { style: 'margin:0;font-size:.86rem;color:var(--muted)' }, 'Filled dots: f < 0 (inside). Hollow dots: f > 0. The red curve is found by linear interpolation along grid edges (marching squares).'));
+    cv.redraw();
+    return () => cv.dispose();
+  }
+});
+
+/* 4 — distance field: normals and closest points */
+DEMOS.push({
+  id: 'distance-field', title: 'Distance field queries', note: 'Normals and closest points from f',
+  lead: 'For a signed distance field, f(p) is the distance to the surface, ∇f(p) is the surface normal direction, and the closest surface point is q = p − f(p) ∇f(p).',
+  tryText: ['', 'Drag the point p', ' anywhere. The highlighted curve is the level set through p: the gradient is always perpendicular to it.'],
+  mount(stage, panel) {
+    const E = { x0: -2.4, x1: 2.4, y0: -1.6, y1: 1.6 };
+    const c = Math.cos(0.35), s = Math.sin(0.35);
+    const sdf = (x, y) => {
+      const d1 = len2(x + 0.8, y - 0.25) - 0.75;
+      let px = x - 0.9, py = y + 0.3; const rx = c * px + s * py, ry = -s * px + c * py; const qx = Math.abs(rx) - 0.62, qy = Math.abs(ry) - 0.42;
+      const d2 = len2(Math.max(qx, 0), Math.max(qy, 0)) + Math.min(Math.max(qx, qy), 0);
+      return Math.min(d1, d2);
+    };
+    const grad = (x, y) => { const e = 1e-3; const gx = (sdf(x + e, y) - sdf(x - e, y)) / (2 * e), gy = (sdf(x, y + e) - sdf(x, y - e)) / (2 * e); const l = Math.hypot(gx, gy) || 1; return [gx / l, gy / l, Math.hypot(gx, gy)]; };
+    const S = { p: [0.55, 1.05] };
+    let field = null, fieldKey = '';
+    const cv = canvas2d(stage, draw, E);
+    function buildField(cv) {
+      const W = Math.round(cv.S.W), H = Math.round(cv.S.H); const key = W + 'x' + H + document.documentElement.dataset.theme;
+      if (field && fieldKey === key) return; fieldKey = key;
+      const sc = 0.5, w = Math.max(1, Math.round(W * sc)), hgt = Math.max(1, Math.round(H * sc));
+      const img = new ImageData(w, hgt); const toS = col => { const o = {}; new THREE.Color(col).getRGB(o, THREE.SRGBColorSpace); return [o.r * 255, o.g * 255, o.b * 255]; };
+      const A = toS(tok('--accent')), BG = toS(tok('--canvas')), I = toS(tok('--muted'));
+      const px = 1 / (cv.S.k * sc);
+      for (let j = 0; j < hgt; j++) for (let i = 0; i < w; i++) {
+        const x = cv.wx(i / sc), y = cv.wy(j / sc), f = sdf(x, y);
+        let col = f < 0 ? A.map((a, q) => BG[q] + (a - BG[q]) * 0.16) : BG.slice();
+        const d = Math.abs(f / 0.2 - Math.round(f / 0.2)) * 0.2; const line = Math.max(0, 1 - d / (1.1 * px)) * 0.45;
+        col = col.map((v, q) => v + (I[q] - v) * line);
+        const o = (j * w + i) * 4; img.data[o] = col[0]; img.data[o + 1] = col[1]; img.data[o + 2] = col[2]; img.data[o + 3] = 255;
+      }
+      const t = document.createElement('canvas'); t.width = w; t.height = hgt; t.getContext('2d').putImageData(img, 0, 0); field = t;
+    }
+    function draw(cv) {
+      const { ctx } = cv; buildField(cv); ctx.imageSmoothingEnabled = true; ctx.drawImage(field, 0, 0, cv.S.W, cv.S.H);
+      const zero = sampleGrid(sdf, E.x0, E.x1, E.y0, E.y1, 220, 150);
+      drawSegs(cv, marchingSquares(zero.F, 220, 150, zero.X, zero.Y, 0), tok('--ink'), 2.2);
+      const [x, y] = S.p, f = sdf(x, y), [gx, gy, gl] = grad(x, y);
+      drawSegs(cv, marchingSquares(zero.F, 220, 150, zero.X, zero.Y, f), tok('--gold'), 1.6);
+      const q = [x - f * gx, y - f * gy];
+      ctx.setLineDash([5, 5]); ctx.strokeStyle = tok('--ink'); ctx.lineWidth = 1.3; ctx.beginPath(); ctx.moveTo(cv.sx(x), cv.sy(y)); ctx.lineTo(cv.sx(q[0]), cv.sy(q[1])); ctx.stroke(); ctx.setLineDash([]);
+      arrow(ctx, cv.sx(x), cv.sy(y), cv.sx(x + gx * 0.6), cv.sy(y + gy * 0.6), tok('--accent'), 2.4);
+      dot(ctx, cv.sx(q[0]), cv.sy(q[1]), 6, tok('--gold'), tok('--canvas'), 2);
+      dot(ctx, cv.sx(x), cv.sy(y), 7, tok('--accent'), tok('--canvas'), 2);
+      ctx.font = `600 13px ${tok('--font-body')}`; ctx.fillStyle = tok('--ink'); ctx.textAlign = 'left';
+      ctx.fillText('p', cv.sx(x) + 10, cv.sy(y) - 8); ctx.fillText('q', cv.sx(q[0]) + 9, cv.sy(q[1]) + 16); ctx.fillStyle = tok('--accent'); ctx.fillText('∇f', cv.sx(x + gx * 0.6) + 6, cv.sy(y + gy * 0.6) - 4);
+      rd.set([['p', `(${fmt(x)}, ${fmt(y)})`], ['f(p)', `${fmt(f, 3)}  ${f < 0 ? '(inside)' : '(outside)'}`], ['∇f(p)', `(${fmt(gx, 3)}, ${fmt(gy, 3)})  |∇f| ≈ ${fmt(gl, 3)}`], ['q', `p − f(p)∇f(p) = (${fmt(q[0])}, ${fmt(q[1])})`], ['f(q)', fmt(sdf(q[0], q[1]), 4)]]);
+    }
+    const rd = readout(panel);
+    panel.append(h('p', { style: 'margin:0;font-size:.86rem;color:var(--muted)' }, 'Grey lines: level sets every 0.2. Black: the surface f = 0. Gold: the level set through p. For a true distance field |∇f| = 1, so one step lands exactly on the surface.'));
+    const row = h('div', { class: 'row' }); panel.append(row);
+    button(row, 'Put p inside', () => { S.p = [-0.9, 0.1]; cv.redraw(); });
+    button(row, 'Put p near a corner', () => { S.p = [1.75, 0.75]; cv.redraw(); });
+    const pos = e => { const r = cv.canvas.getBoundingClientRect(); return [cv.wx(e.clientX - r.left), cv.wy(e.clientY - r.top)]; };
+    let dragging = false;
+    cv.canvas.addEventListener('pointerdown', e => { dragging = true; cv.canvas.setPointerCapture(e.pointerId); S.p = pos(e); cv.redraw(); });
+    cv.canvas.addEventListener('pointermove', e => { if (dragging) { S.p = pos(e); cv.redraw(); } });
+    cv.canvas.addEventListener('pointerup', () => dragging = false);
+    cv.canvas.style.cursor = 'crosshair';
+    cv.redraw();
+    return () => cv.dispose();
+  }
+});
+
+/* 5 — topology changes with implicit surfaces */
+DEMOS.push({
+  id: 'topology', title: 'Topology changes', note: 'Merging and splitting for free',
+  lead: 'Two blobs are one implicit function. Moving them apart or changing the iso-value τ splits and merges the surface — no special handling needed.',
+  tryText: ['Increase the ', 'separation', ' until the surface tears into two pieces, then lower τ to merge them again. Turn on the wireframe: the triangle mesh is re-extracted every frame.'],
+  mount(stage, panel) {
+    const V = viewer(stage, { cam: [0.4, -3.6, 1.4] });
+    const mat = new THREE.MeshStandardMaterial({ color: tok('--accent'), roughness: 0.42, metalness: 0.0 });
+    const mc = new MarchingCubes(64, mat, false, false, 120000); mc.scale.setScalar(1.4); V.scene.add(mc);
+    const S = { sep: 0.16, iso: 80, three: false };
+    function update() {
+      mc.reset(); mc.isolation = S.iso;
+      const st = 0.55, sub = 12;
+      mc.addBall(0.5 - S.sep / 2, 0.5, 0.5, st, sub); mc.addBall(0.5 + S.sep / 2, 0.5, 0.5, st, sub);
+      if (S.three) mc.addBall(0.5, 0.5, 0.5 + S.sep * 0.6, st * 0.8, sub);
+      mc.update();
+      rd.set([['blobs', S.three ? '3' : '2'], ['iso τ', String(S.iso)], ['triangles', Math.floor(mc.count / 3).toLocaleString()]]);
+    }
+    slider(panel, { id: 'tp-sep', label: 'Separation', min: 0, max: 0.6, step: 0.005, value: S.sep, f: v => fmt(v, 2), onInput: v => { S.sep = v; update(); } });
+    slider(panel, { id: 'tp-iso', label: 'Iso-value τ', min: 20, max: 200, step: 1, value: S.iso, f: v => v, onInput: v => { S.iso = v; update(); } });
+    check(panel, { id: 'tp-3', label: 'Add a third blob', checked: false, onChange: v => { S.three = v; update(); } });
+    check(panel, { id: 'tp-wire', label: 'Show triangle mesh (wireframe)', checked: false, onChange: v => { mat.wireframe = v; } });
+    const rd = readout(panel);
+    panel.append(h('p', { style: 'margin:0;font-size:.86rem;color:var(--muted)' }, 'Surface S = { p : f(p) = τ }. A mesh-based representation would need explicit surgery on its connectivity to split or merge.'));
+    update();
+    return () => V.dispose();
+  }
+});
+
+/* 6 — triangle meshes, points and normals */
+DEMOS.push({
+  id: 'mesh-normals', title: 'Meshes & normals', note: 'Point clouds, faces, barycentric interpolation',
+  lead: 'A triangle mesh stores vertices (x,y,z) and triangles (i,j,k). Normals can be stored per face, or per vertex and interpolated with barycentric weights.',
+  tryText: ['Compare ', 'flat and smooth shading', '. Click any triangle: φ₁, φ₂, φ₃ are the barycentric weights of the clicked point, and the red arrow is the interpolated normal φ₁n₁ + φ₂n₂ + φ₃n₃.'],
+  mount(stage, panel) {
+    const V = viewer(stage, { cam: [2.3, -3.1, 1.7] });
+    const S = { shape: 'blob', detail: 2, view: 'smooth', normals: 'none' };
+    const surfMat = new THREE.MeshStandardMaterial({ color: tok('--surface'), roughness: 0.6, polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 1 });
+    let mesh, wire, pts, nrm, geo;
+    const pick = new THREE.Group(); V.scene.add(pick);
+    function build() {
+      [mesh, wire, pts, nrm].forEach(o => { if (o) { V.scene.remove(o); o.geometry.dispose(); if (o.material !== surfMat) o.material.dispose(); } });
+      let g;
+      if (S.shape === 'torus') g = new THREE.TorusGeometry(0.9, 0.38, 6 + S.detail * 4, 10 + S.detail * 8);
+      else g = new THREE.IcosahedronGeometry(1, S.detail);
+      g.deleteAttribute('uv'); g.deleteAttribute('normal');
+      g = mergeVertices(g);
+      if (S.shape === 'blob') { const p = g.attributes.position; for (let i = 0; i < p.count; i++) { const v = new THREE.Vector3().fromBufferAttribute(p, i).normalize(); const r = 1 + 0.16 * Math.sin(3 * v.x + 0.5) * Math.sin(2.5 * v.y) + 0.12 * Math.cos(4 * v.z); p.setXYZ(i, v.x * r, v.y * r, v.z * r); } }
+      g.computeVertexNormals(); geo = g;
+      mesh = new THREE.Mesh(g, surfMat); V.scene.add(mesh);
+      wire = new THREE.LineSegments(new THREE.WireframeGeometry(g), new THREE.LineBasicMaterial({ color: tok('--ink'), transparent: true, opacity: 0.35 })); V.scene.add(wire);
+      pts = new THREE.Points(g, new THREE.PointsMaterial({ color: tok('--ink'), size: 0.035 })); V.scene.add(pts);
+      const pos = g.attributes.position, idx = g.index, L = [], lenN = 0.16;
+      if (S.normals === 'face') for (let t = 0; t < idx.count; t += 3) { const a = new THREE.Vector3().fromBufferAttribute(pos, idx.getX(t)), b = new THREE.Vector3().fromBufferAttribute(pos, idx.getX(t + 1)), c = new THREE.Vector3().fromBufferAttribute(pos, idx.getX(t + 2)); const ctr = a.clone().add(b).add(c).multiplyScalar(1 / 3); const n = new THREE.Vector3().subVectors(b, a).cross(new THREE.Vector3().subVectors(c, a)).normalize(); L.push(ctr.x, ctr.y, ctr.z, ctr.x + n.x * lenN, ctr.y + n.y * lenN, ctr.z + n.z * lenN); }
+      if (S.normals === 'vertex') { const nn = g.attributes.normal; for (let i = 0; i < pos.count; i++) L.push(pos.getX(i), pos.getY(i), pos.getZ(i), pos.getX(i) + nn.getX(i) * lenN, pos.getY(i) + nn.getY(i) * lenN, pos.getZ(i) + nn.getZ(i) * lenN); }
+      const ng = new THREE.BufferGeometry(); ng.setAttribute('position', new THREE.Float32BufferAttribute(L, 3));
+      nrm = new THREE.LineSegments(ng, new THREE.LineBasicMaterial({ color: tok('--gold') })); V.scene.add(nrm);
+      applyView(); clearPick(); pickAtCenter();
+      info.set([['vertices', pos.count.toLocaleString()], ['triangles', (idx.count / 3).toLocaleString()], ['storage', `${pos.count}×3 floats + ${idx.count / 3}×3 ints`]]);
+    }
+    function applyView() {
+      mesh.visible = S.view !== 'points'; pts.visible = S.view === 'points'; wire.visible = S.view === 'wire' || S.view === 'flat';
+      surfMat.flatShading = S.view === 'flat'; surfMat.needsUpdate = true;
+      wire.material.opacity = S.view === 'wire' ? 0.55 : 0.18;
+    }
+    function clearPick() { pick.children.slice().forEach(o => { pick.remove(o); o.geometry && o.geometry.dispose(); o.material && o.material.dispose(); }); bary.set([['click', 'a triangle to inspect it']]); }
+    const ray = new THREE.Raycaster();
+    function pickAt(v2) {
+      if (S.view === 'points') return; ray.setFromCamera(v2, V.camera); const hit = ray.intersectObject(mesh)[0]; if (!hit) return;
+      clearPick(); const pos = geo.attributes.position, nn = geo.attributes.normal; const ids = [hit.face.a, hit.face.b, hit.face.c];
+      const P = ids.map(i => new THREE.Vector3().fromBufferAttribute(pos, i)), N = ids.map(i => new THREE.Vector3().fromBufferAttribute(nn, i));
+      const phi = new THREE.Vector3(); THREE.Triangle.getBarycoord(hit.point, P[0], P[1], P[2], phi);
+      const ni = N[0].clone().multiplyScalar(phi.x).add(N[1].clone().multiplyScalar(phi.y)).add(N[2].clone().multiplyScalar(phi.z)).normalize();
+      const nf = new THREE.Vector3().subVectors(P[1], P[0]).cross(new THREE.Vector3().subVectors(P[2], P[0])).normalize();
+      const tg = new THREE.BufferGeometry().setFromPoints(P.map(p => p.clone().add(nf.clone().multiplyScalar(0.004)))); tg.setIndex([0, 1, 2]);
+      pick.add(new THREE.Mesh(tg, new THREE.MeshBasicMaterial({ color: tok('--gold'), transparent: true, opacity: 0.55, side: THREE.DoubleSide, depthTest: true })));
+      P.forEach(p => { const s = new THREE.Mesh(new THREE.SphereGeometry(0.022, 12, 8), new THREE.MeshBasicMaterial({ color: tok('--ink') })); s.position.copy(p); pick.add(s); });
+      const hp = new THREE.Mesh(new THREE.SphereGeometry(0.025, 16, 10), new THREE.MeshBasicMaterial({ color: tok('--accent') })); hp.position.copy(hit.point); pick.add(hp);
+      pick.add(new THREE.ArrowHelper(ni, hit.point, 0.45, new THREE.Color(tok('--accent')).getHex(), 0.08, 0.05));
+      pick.add(new THREE.ArrowHelper(nf, hit.point, 0.32, new THREE.Color(tok('--gold')).getHex(), 0.07, 0.045));
+      bary.set([['φ₁, φ₂, φ₃', `${fmt(phi.x, 3)}, ${fmt(phi.y, 3)}, ${fmt(phi.z, 3)}`], ['sum', fmt(phi.x + phi.y + phi.z, 3)], ['n (interp.)', `(${fmt(ni.x)}, ${fmt(ni.y)}, ${fmt(ni.z)})`], ['n (face)', `(${fmt(nf.x)}, ${fmt(nf.y)}, ${fmt(nf.z)})`]]);
+    }
+    function pickAtCenter() { pickAt(new THREE.Vector2(0.08, 0.12)); }
+    const off = onClick(V.renderer.domElement, e => pickAt(ndc(e, V.renderer.domElement)));
+    seg(panel, { id: 'mn-shape', label: 'Shape', value: S.shape, options: [['blob', 'Blob'], ['sphere', 'Sphere'], ['torus', 'Torus']], onChange: v => { S.shape = v; build(); } });
+    slider(panel, { id: 'mn-detail', label: 'Resolution', min: 0, max: 4, step: 1, value: S.detail, f: v => v, onInput: v => { S.detail = v; build(); } });
+    seg(panel, { id: 'mn-view', label: 'Display', value: S.view, options: [['points', 'Point cloud'], ['wire', 'Wireframe'], ['flat', 'Flat (face normals)'], ['smooth', 'Smooth (vertex normals)']], onChange: v => { S.view = v; applyView(); } });
+    seg(panel, { id: 'mn-normals', label: 'Draw normals', value: S.normals, options: [['none', 'None'], ['face', 'Per face'], ['vertex', 'Per vertex']], onChange: v => { S.normals = v; build(); } });
+    const info = readout(panel);
+    groupTitle(panel, 'Clicked point');
+    const bary = readout(panel);
+    panel.append(h('p', { style: 'margin:0;font-size:.86rem;color:var(--muted)' }, 'Gold arrow: face normal (p₂ − p₁) × (p₃ − p₁). Red arrow: interpolated vertex normals.'));
+    build();
+    return () => { off(); clearPick(); V.dispose(); };
+  }
+});
+
+/* 7 — Bernstein basis and Bézier curves */
+DEMOS.push({
+  id: 'bezier', title: 'Bézier curves', note: 'Bernstein basis, de Casteljau, continuity',
+  lead: 'A Bézier curve mixes control points pₖ with Bernstein weights: γ(s) = Σ Bₙ,ₖ(s) pₖ. Each control point has the same colour as its basis function below.',
+  tryText: ['', 'Drag the control points', '. Move s to watch the de Casteljau construction. Raise the degree to see why high-degree curves are hard to control, then switch to piecewise cubic curves and compare C⁰ and C¹ joins.'],
+  mount(stage, panel) {
+    stage.classList.add('stack');
+    const top = h('div'), bot = h('div'); stage.append(top, bot);
+    const S = { mode: 'single', n: 3, t: 0.4, casteljau: true, hull: false, cont: 'C1' };
+    const wave = n => Array.from({ length: n + 1 }, (_, k) => [-1.7 + 3.4 * k / n, n === 1 ? (k ? 0.6 : -0.6) : 0.85 * Math.sin(k * 2.1 + 0.4)]);
+    let P = [[-1.7, -0.75], [-0.9, 0.95], [0.75, 0.95], [1.7, -0.7]];
+    // piecewise: 3 cubic segments; stored as 12 points; joints shared depending on continuity
+    let segs = [[[-2.1, -0.4], [-1.7, 0.7], [-1.0, 0.8], [-0.7, 0.0]], [[-0.7, 0.0], [-0.4, -0.8], [0.4, -0.8], [0.7, 0.0]], [[0.7, 0.0], [1.0, 0.8], [1.7, 0.7], [2.1, -0.4]]];
+    const E = { x0: -2.3, x1: 2.3, y0: -1.15, y1: 1.2 };
+    const cv = canvas2d(top, draw, E);
+    const bv = canvas2d(bot, drawBasis, { x0: -0.03, x1: 1.03, y0: -0.1, y1: 1.12 }, true);
+    const curve = (pts, t) => { let q = pts.map(p => p.slice()); while (q.length > 1) q = q.slice(1).map((p, i) => [q[i][0] * (1 - t) + p[0] * t, q[i][1] * (1 - t) + p[1] * t]); return q[0]; };
+    function hull(pts) { const p = pts.slice().sort((a, b) => a[0] - b[0] || a[1] - b[1]); const cr = (o, a, b) => (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]); const lo = [], up = []; for (const x of p) { while (lo.length > 1 && cr(lo[lo.length - 2], lo[lo.length - 1], x) <= 0) lo.pop(); lo.push(x); } for (const x of p.slice().reverse()) { while (up.length > 1 && cr(up[up.length - 2], up[up.length - 1], x) <= 0) up.pop(); up.push(x); } return lo.slice(0, -1).concat(up.slice(0, -1)); }
+    function polyline(cv, pts, color, lw, dash) { const { ctx } = cv; ctx.setLineDash(dash || []); ctx.strokeStyle = color; ctx.lineWidth = lw; ctx.beginPath(); pts.forEach((p, i) => i ? ctx.lineTo(cv.sx(p[0]), cv.sy(p[1])) : ctx.moveTo(cv.sx(p[0]), cv.sy(p[1]))); ctx.stroke(); ctx.setLineDash([]); }
+    function drawCurve(cv, pts, color, lw) { const c = []; for (let i = 0; i <= 200; i++) c.push(curve(pts, i / 200)); polyline(cv, c, color, lw); }
+    function draw(cv) {
+      const { ctx } = cv; const ink = tok('--ink'), mut = tok('--muted'), acc = tok('--accent');
+      if (S.mode === 'single') {
+        const n = P.length - 1;
+        if (S.hull) { const H = hull(P); ctx.fillStyle = tok('--grid'); ctx.beginPath(); H.forEach((p, i) => i ? ctx.lineTo(cv.sx(p[0]), cv.sy(p[1])) : ctx.moveTo(cv.sx(p[0]), cv.sy(p[1]))); ctx.closePath(); ctx.fill(); }
+        polyline(cv, P, mut, 1.2, [4, 4]);
+        drawCurve(cv, P, ink, 3);
+        if (S.casteljau) { let q = P.map(p => p.slice()); let lvl = 0; while (q.length > 1) { q = q.slice(1).map((p, i) => [q[i][0] * (1 - S.t) + p[0] * S.t, q[i][1] * (1 - S.t) + p[1] * S.t]); lvl++; if (q.length > 1) { polyline(cv, q, mut, 1); q.forEach(p => dot(ctx, cv.sx(p[0]), cv.sy(p[1]), 3, mut)); } } const g = q[0]; dot(ctx, cv.sx(g[0]), cv.sy(g[1]), 7, acc, tok('--canvas'), 2); ctx.fillStyle = acc; ctx.font = `600 13px ${tok('--font-body')}`; ctx.fillText('γ(s)', cv.sx(g[0]) + 10, cv.sy(g[1]) - 10); }
+        P.forEach((p, k) => { dot(ctx, cv.sx(p[0]), cv.sy(p[1]), 7.5, rampColor(k, n), tok('--canvas'), 2); ctx.fillStyle = mut; ctx.font = `12px ${tok('--font-mono')}`; ctx.fillText('p' + k, cv.sx(p[0]) + 10, cv.sy(p[1]) + 4); });
+      } else {
+        segs.forEach(sg => polyline(cv, sg, mut, 1.2, [4, 4]));
+        segs.forEach(sg => drawCurve(cv, sg, ink, 3));
+        const shown = new Set(); segs.forEach((sg, si) => sg.forEach((p, k) => { if (shown.has(p)) return; shown.add(p); const joint = k === 0 || k === 3; dot(ctx, cv.sx(p[0]), cv.sy(p[1]), joint ? 7.5 : 6, joint ? acc : rampColor(1, 3), tok('--canvas'), 2); }));
+        // tangent mismatch at joints
+        const ang = []; for (let i = 0; i < 2; i++) { const a = segs[i], b = segs[i + 1]; const t1 = [a[3][0] - a[2][0], a[3][1] - a[2][1]], t2 = [b[1][0] - b[0][0], b[1][1] - b[0][1]]; const gap = Math.hypot(a[3][0] - b[0][0], a[3][1] - b[0][1]); const an = Math.abs(Math.atan2(t1[0] * t2[1] - t1[1] * t2[0], t1[0] * t2[0] + t1[1] * t2[1])) * 180 / Math.PI; ang.push([gap, an]); }
+        rd.set(ang.map(([g, a], i) => [`joint ${i + 1}`, g > 1e-6 ? `gap ${fmt(g)} → not even C⁰` : a > 0.5 ? `kink ${fmt(a, 1)}° → C⁰ only` : 'smooth → C¹']));
+      }
+    }
+    function drawBasis(bv) {
+      const { ctx } = bv; const n = S.mode === 'single' ? P.length - 1 : 3;
+      ctx.strokeStyle = tok('--grid'); ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(bv.sx(0), bv.sy(0)); ctx.lineTo(bv.sx(1), bv.sy(0)); ctx.moveTo(bv.sx(0), bv.sy(0)); ctx.lineTo(bv.sx(0), bv.sy(1)); ctx.stroke();
+      for (let k = 0; k <= n; k++) { const c = []; for (let i = 0; i <= 120; i++) c.push([i / 120, B(n, k, i / 120)]); polyline(bv, c, rampColor(k, n), 2); }
+      if (S.mode === 'single') { ctx.strokeStyle = tok('--muted'); ctx.setLineDash([3, 3]); ctx.beginPath(); ctx.moveTo(bv.sx(S.t), bv.sy(0)); ctx.lineTo(bv.sx(S.t), bv.sy(1)); ctx.stroke(); ctx.setLineDash([]); for (let k = 0; k <= n; k++) dot(ctx, bv.sx(S.t), bv.sy(B(n, k, S.t)), 4, rampColor(k, n)); }
+      ctx.fillStyle = tok('--muted'); ctx.font = `12px ${tok('--font-body')}`; ctx.fillText(`Bernstein basis Bₙ,ₖ(s), n = ${n}`, bv.sx(0) + 8, bv.sy(1.06)); ctx.fillText('s', bv.sx(1) - 4, bv.sy(0) + 14);
+      if (S.mode === 'single') rd.set([['s', fmt(S.t)], ['weights', Array.from({ length: n + 1 }, (_, k) => fmt(B(n, k, S.t))).join('  ')], ['Σ weights', '1.00']]);
+    }
+    const redraw = () => { cv.redraw(); bv.redraw(); };
+    draggable(cv, () => S.mode === 'single' ? P : [...new Set(segs.flat())], (i, w) => {
+      if (S.mode === 'single') { P[i] = w; redraw(); return; }
+      const all = [...new Set(segs.flat())]; const p = all[i]; const dx = w[0] - p[0], dy = w[1] - p[1];
+      // find role of p
+      for (let s = 0; s < 3; s++) for (let k = 0; k < 4; k++) if (segs[s][k] === p) {
+        const isJoint = (k === 3 && s < 2) || (k === 0 && s > 0);
+        if (S.cont === 'C1' && isJoint) { const nb = []; if (k === 3) nb.push(segs[s][2], segs[s + 1][1]); else nb.push(segs[s - 1][2], segs[s][1]); nb.forEach(q => { q[0] += dx; q[1] += dy; }); }
+      }
+      p[0] = w[0]; p[1] = w[1];
+      if (S.cont === 'C1') for (let s = 0; s < 2; s++) { const J = segs[s][3]; if (p === segs[s][2]) { segs[s + 1][1][0] = 2 * J[0] - p[0]; segs[s + 1][1][1] = 2 * J[1] - p[1]; } if (p === segs[s + 1][1]) { segs[s][2][0] = 2 * J[0] - p[0]; segs[s][2][1] = 2 * J[1] - p[1]; } }
+      redraw();
+    });
+    function setCont(c) {
+      S.cont = c;
+      if (c === 'gap') { segs = segs.map(sg => sg.map(p => p.slice())); segs[1] = segs[1].map(p => [p[0], p[1] - 0.25]); }
+      else { for (let s = 0; s < 2; s++) { const a = segs[s][3]; segs[s + 1][0] = a; } if (c === 'C1') for (let s = 0; s < 2; s++) { const J = segs[s][3], hnd = segs[s][2]; segs[s + 1][1][0] = 2 * J[0] - hnd[0]; segs[s + 1][1][1] = 2 * J[1] - hnd[1]; } }
+      redraw();
+    }
+    const single = h('div', { style: 'display:flex;flex-direction:column;gap:14px' }), piece = h('div', { style: 'display:flex;flex-direction:column;gap:14px' });
+    seg(panel, { id: 'bz-mode', label: 'Curve', value: S.mode, options: [['single', 'Single Bézier'], ['piece', 'Piecewise cubic']], onChange: v => { S.mode = v; single.hidden = v !== 'single'; piece.hidden = v === 'single'; redraw(); } });
+    panel.append(single, piece);
+    slider(single, { id: 'bz-n', label: 'Degree n', min: 1, max: 10, step: 1, value: S.n, f: v => v, onInput: v => { S.n = v; P = v === 3 ? [[-1.7, -0.75], [-0.9, 0.95], [0.75, 0.95], [1.7, -0.7]] : wave(v); redraw(); } });
+    slider(single, { id: 'bz-t', label: 'Parameter s', min: 0, max: 1, step: 0.005, value: S.t, f: v => fmt(v), onInput: v => { S.t = v; redraw(); } });
+    check(single, { id: 'bz-cast', label: 'de Casteljau construction', checked: true, onChange: v => { S.casteljau = v; redraw(); } });
+    check(single, { id: 'bz-hull', label: 'Convex hull of control points', checked: false, onChange: v => { S.hull = v; redraw(); } });
+    seg(piece, { id: 'bz-cont', label: 'Join', value: S.cont, options: [['gap', 'Disconnected'], ['C0', 'C⁰: points meet'], ['C1', 'C¹: tangents meet']], onChange: setCont });
+    piece.append(h('p', { style: 'margin:0;font-size:.86rem;color:var(--muted)' }, 'With C¹, dragging a handle mirrors its partner across the joint — the constraint that keeps the curve seamless.'));
+    piece.hidden = true;
+    const rd = readout(panel);
+    setCont('C1'); redraw();
+    return () => { cv.dispose(); bv.dispose(); stage.classList.remove('stack'); };
+  }
+});
+
+/* 8 — tensor-product Bézier patch */
+DEMOS.push({
+  id: 'bezier-patch', title: 'Bézier patches', note: 'Tensor products of curves',
+  lead: 'A bicubic patch is S(u,v) = Σᵢ Σⱼ Bᵢ(u) Bⱼ(v) pᵢⱼ — a 4 × 4 grid of control points, each weighted by a product of two Bernstein polynomials.',
+  tryText: ['', 'Click a control point', ' and change its height. Colour the surface by its weight Bᵢ(u)Bⱼ(v) to see how far its influence reaches.'],
+  mount(stage, panel) {
+    const V = viewer(stage, { cam: [3.6, -4.6, 3.4] });
+    const grid = Array.from({ length: 4 }, (_, i) => Array.from({ length: 4 }, (_, j) => new THREE.Vector3(-1.5 + i, -1.5 + j, (i === 0 || i === 3 || j === 0 || j === 3) ? 0.15 * Math.sin(i + j) : (i + j === 3 ? 1.1 : -0.35))));
+    const S = { sel: [1, 2], colorBy: true };
+    const R = 30;
+    const geo = new THREE.BufferGeometry();
+    const pos = new Float32Array((R + 1) * (R + 1) * 3), col = new Float32Array((R + 1) * (R + 1) * 3), idx = [];
+    for (let a = 0; a < R; a++) for (let b = 0; b < R; b++) { const i0 = a * (R + 1) + b, i1 = i0 + R + 1; idx.push(i0, i1, i0 + 1, i1, i1 + 1, i0 + 1); }
+    geo.setAttribute('position', new THREE.BufferAttribute(pos, 3)); geo.setAttribute('color', new THREE.BufferAttribute(col, 3)); geo.setIndex(idx);
+    const mat = new THREE.MeshStandardMaterial({ color: 0xffffff, vertexColors: true, roughness: 0.55, side: THREE.DoubleSide });
+    V.scene.add(new THREE.Mesh(geo, mat));
+    const iso = new THREE.LineSegments(new THREE.BufferGeometry(), new THREE.LineBasicMaterial({ color: tok('--ink'), transparent: true, opacity: 0.25 })); V.scene.add(iso);
+    const net = new THREE.LineSegments(new THREE.BufferGeometry(), new THREE.LineBasicMaterial({ color: tok('--muted') })); V.scene.add(net);
+    const handles = []; grid.forEach((row, i) => row.forEach((p, j) => { const m = new THREE.Mesh(new THREE.SphereGeometry(0.075, 18, 12), new THREE.MeshStandardMaterial({ color: tok('--ink') })); m.userData = { i, j }; handles.push(m); V.scene.add(m); }));
+    const surfC = new THREE.Color(tok('--surface')), accC = new THREE.Color(tok('--accent'));
+    const Bc = (k, t) => B(3, k, t);
+    function update() {
+      const [si, sj] = S.sel; const wmax = Bc(si, si / 3) * Bc(sj, sj / 3);
+      for (let a = 0; a <= R; a++) for (let b = 0; b <= R; b++) {
+        const u = a / R, v = b / R; let x = 0, y = 0, z = 0;
+        for (let i = 0; i < 4; i++) for (let j = 0; j < 4; j++) { const w = Bc(i, u) * Bc(j, v); x += w * grid[i][j].x; y += w * grid[i][j].y; z += w * grid[i][j].z; }
+        const o = (a * (R + 1) + b) * 3; pos[o] = x; pos[o + 1] = y; pos[o + 2] = z;
+        const t = S.colorBy ? clamp(Bc(si, u) * Bc(sj, v) / wmax, 0, 1) : 0; const c = surfC.clone().lerp(accC, t * 0.9); col[o] = c.r; col[o + 1] = c.g; col[o + 2] = c.b;
+      }
+      geo.attributes.position.needsUpdate = true; geo.attributes.color.needsUpdate = true; geo.computeVertexNormals(); geo.computeBoundingSphere();
+      const L = []; for (let a = 0; a <= R; a += 5) for (let b = 0; b < R; b++) { const o1 = (a * (R + 1) + b) * 3, o2 = (a * (R + 1) + b + 1) * 3; L.push(pos[o1], pos[o1 + 1], pos[o1 + 2], pos[o2], pos[o2 + 1], pos[o2 + 2]); const p1 = (b * (R + 1) + a) * 3, p2 = ((b + 1) * (R + 1) + a) * 3; L.push(pos[p1], pos[p1 + 1], pos[p1 + 2], pos[p2], pos[p2 + 1], pos[p2 + 2]); }
+      iso.geometry.dispose(); iso.geometry = new THREE.BufferGeometry(); iso.geometry.setAttribute('position', new THREE.Float32BufferAttribute(L, 3));
+      const N = []; for (let i = 0; i < 4; i++) for (let j = 0; j < 4; j++) { if (i < 3) N.push(...grid[i][j].toArray(), ...grid[i + 1][j].toArray()); if (j < 3) N.push(...grid[i][j].toArray(), ...grid[i][j + 1].toArray()); }
+      net.geometry.dispose(); net.geometry = new THREE.BufferGeometry(); net.geometry.setAttribute('position', new THREE.Float32BufferAttribute(N, 3));
+      handles.forEach(m => { const { i, j } = m.userData; m.position.copy(grid[i][j]); const sel = i === si && j === sj; m.material.color.set(sel ? tok('--accent') : tok('--ink')); m.scale.setScalar(sel ? 1.45 : 1); });
+      rd.set([['selected', `p${si}${sj}`], ['height z', fmt(grid[si][sj].z)], ['max weight', `B${si}(u)B${sj}(v) ≤ ${fmt(wmax, 3)}`]]);
+    }
+    const ray = new THREE.Raycaster();
+    const off = onClick(V.renderer.domElement, e => { ray.setFromCamera(ndc(e, V.renderer.domElement), V.camera); const hit = ray.intersectObjects(handles)[0]; if (hit) { S.sel = [hit.object.userData.i, hit.object.userData.j]; zSl.set(grid[S.sel[0]][S.sel[1]].z); update(); } });
+    const zSl = slider(panel, { id: 'bp-z', label: 'Height of selected point', min: -1.8, max: 1.8, step: 0.01, value: grid[1][2].z, f: v => fmt(v), onInput: v => { grid[S.sel[0]][S.sel[1]].z = v; update(); } });
+    check(panel, { id: 'bp-col', label: 'Colour surface by weight Bᵢ(u)Bⱼ(v)', checked: true, onChange: v => { S.colorBy = v; update(); } });
+    const row = h('div', { class: 'row' }); panel.append(row);
+    button(row, 'Flatten', () => { grid.forEach(r => r.forEach(p => p.z = 0)); zSl.set(0); update(); });
+    button(row, 'Random bumps', () => { grid.forEach(r => r.forEach(p => p.z = (Math.random() - 0.5) * 2.2)); zSl.set(grid[S.sel[0]][S.sel[1]].z); update(); });
+    const rd = readout(panel);
+    panel.append(h('p', { style: 'margin:0;font-size:.86rem;color:var(--muted)' }, 'The patch passes through the four corner points only. Interior points pull on the surface without lying on it — the same local control as for curves.'));
+    update();
+    return () => { off(); V.dispose(); };
+  }
+});
+
+/* 9 — rational curves and conics */
+DEMOS.push({
+  id: 'nurbs', title: 'Rational curves', note: 'Weights, exact circles, NURBS',
+  lead: 'A rational Bézier curve divides by a weighted sum: C(s) = Σ wₖ Bₖ(s) pₖ / Σ wₖ Bₖ(s). Polynomials alone cannot draw a circle; with the right weight, the quadratic rational curve is exactly a circular arc.',
+  tryText: ['Move the ', 'weight w₁', ' of the middle control point. At w₁ = √2/2 ≈ 0.707 the curve lies exactly on the circle.'],
+  mount(stage, panel) {
+    const S = { w: 1, compare: false };
+    const P = [[1, 0], [1, 1], [0, 1]];
+    const E = { x0: -0.25, x1: 1.45, y0: -0.2, y1: 1.3 };
+    const C = (w, t) => { const ws = [1, w, 1]; let nx = 0, ny = 0, d = 0; for (let k = 0; k < 3; k++) { const b = ws[k] * B(2, k, t); nx += b * P[k][0]; ny += b * P[k][1]; d += b; } return [nx / d, ny / d]; };
+    const cv = canvas2d(stage, draw, E);
+    function poly(cv, pts, color, lw, dash) { const { ctx } = cv; ctx.setLineDash(dash || []); ctx.strokeStyle = color; ctx.lineWidth = lw; ctx.beginPath(); pts.forEach((p, i) => i ? ctx.lineTo(cv.sx(p[0]), cv.sy(p[1])) : ctx.moveTo(cv.sx(p[0]), cv.sy(p[1]))); ctx.stroke(); ctx.setLineDash([]); }
+    function draw(cv) {
+      const { ctx } = cv; const circ = []; for (let i = 0; i <= 100; i++) { const a = Math.PI / 2 * i / 100; circ.push([Math.cos(a), Math.sin(a)]); }
+      ctx.strokeStyle = tok('--grid'); ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(cv.sx(0), cv.sy(E.y0)); ctx.lineTo(cv.sx(0), cv.sy(E.y1)); ctx.moveTo(cv.sx(E.x0), cv.sy(0)); ctx.lineTo(cv.sx(E.x1), cv.sy(0)); ctx.stroke();
+      poly(cv, circ, tok('--muted'), 1.5, [6, 5]);
+      poly(cv, P, tok('--muted'), 1.2, [3, 4]);
+      if (S.compare) [[0.25, '0.25'], [1, '1'], [2.5, '2.5']].forEach(([w, l]) => { const c = []; for (let i = 0; i <= 120; i++) c.push(C(w, i / 120)); poly(cv, c, tok('--gold'), 1.4); const m = C(w, 0.5); ctx.fillStyle = tok('--gold'); ctx.font = `12px ${tok('--font-mono')}`; ctx.fillText('w=' + l, cv.sx(m[0]) + 6, cv.sy(m[1]) - 4); });
+      const c = []; let err = 0; for (let i = 0; i <= 400; i++) { const p = C(S.w, i / 400); c.push(p); err = Math.max(err, Math.abs(Math.hypot(p[0], p[1]) - 1)); }
+      poly(cv, c, tok('--accent'), 3.2);
+      P.forEach((p, k) => { dot(ctx, cv.sx(p[0]), cv.sy(p[1]), 7, k === 1 ? tok('--accent') : tok('--ink'), tok('--canvas'), 2); ctx.fillStyle = tok('--ink'); ctx.font = `13px ${tok('--font-mono')}`; const lab = `p${k}` + (k === 1 ? `   w₁ = ${fmt(S.w, 3)}` : '   w = 1'); ctx.textAlign = k === 2 ? 'right' : 'left'; ctx.fillText(lab, cv.sx(p[0]) + (k === 2 ? -12 : 12), cv.sy(p[1]) + (k === 0 ? 18 : -10)); ctx.textAlign = 'left'; });
+      rd.set([['w₁', fmt(S.w, 4)], ['max |‖C(s)‖ − 1|', err < 1e-9 ? '< 1e−9  (exact circle)' : err.toExponential(2)], ['w₁ = 1', 'ordinary quadratic Bézier']]);
+    }
+    const wSl = slider(panel, { id: 'nb-w', label: 'Weight w₁ of p₁', min: 0, max: 3, step: 0.001, value: S.w, f: v => fmt(v, 3), onInput: v => { S.w = v; cv.redraw(); } });
+    const row = h('div', { class: 'row' }); panel.append(row);
+    button(row, 'Set w₁ = √2/2', () => { S.w = Math.SQRT1_2; wSl.set(S.w); cv.redraw(); }, true);
+    button(row, 'w₁ = 1', () => { S.w = 1; wSl.set(1); cv.redraw(); });
+    check(panel, { id: 'nb-cmp', label: 'Compare w = 0.25, 1, 2.5', checked: false, onChange: v => { S.compare = v; cv.redraw(); } });
+    const rd = readout(panel);
+    panel.append(h('p', { style: 'margin:0;font-size:.86rem;color:var(--muted)' }, 'Why it works: the curve is an ordinary Bézier curve in homogeneous coordinates (wx, wy, w), projected back to the plane by dividing by w. A larger weight pulls the curve toward its control point.'));
+    cv.redraw();
+    return () => cv.dispose();
+  }
+});
+
+/* 10 — subdivision */
+DEMOS.push({
+  id: 'subdivision', title: 'Subdivision', note: 'Chaikin curves and Catmull–Clark surfaces',
+  lead: 'Start from a coarse control polygon or cage, split it, and move every point to a weighted average of its neighbours. Repeating this converges to a smooth limit curve or surface.',
+  tryText: ['', 'Drag the control polygon', ' on the left and raise the number of steps. On the right, Catmull–Clark turns a cube into a smooth, sphere-like surface.'],
+  mount(stage, panel) {
+    stage.classList.add('split');
+    const left = h('div'), right = h('div'); stage.append(left, right);
+    left.append(h('div', { class: 'tag' }, 'Chaikin corner cutting (curve)')); right.append(h('div', { class: 'tag' }, 'Catmull–Clark (surface)'));
+    const S = { it: 3, lvl: 2, cage: true, wire: true };
+    let P = [[-1.3, -0.9], [0.2, -1.2], [1.4, -0.4], [1.0, 1.0], [-0.3, 1.25], [-1.5, 0.4]];
+    const cv = canvas2d(left, draw, { x0: -1.8, x1: 1.8, y0: -1.6, y1: 1.6 });
+    const chaikin = (pts, k) => { let q = pts; for (let s = 0; s < k; s++) { const r = []; for (let i = 0; i < q.length; i++) { const a = q[i], b = q[(i + 1) % q.length]; r.push([0.75 * a[0] + 0.25 * b[0], 0.75 * a[1] + 0.25 * b[1]], [0.25 * a[0] + 0.75 * b[0], 0.25 * a[1] + 0.75 * b[1]]); } q = r; } return q; };
+    function draw(cv) {
+      const { ctx } = cv; const closed = pts => pts.concat([pts[0]]);
+      const pl = (pts, color, lw, dash) => { ctx.setLineDash(dash || []); ctx.strokeStyle = color; ctx.lineWidth = lw; ctx.beginPath(); pts.forEach((p, i) => i ? ctx.lineTo(cv.sx(p[0]), cv.sy(p[1])) : ctx.moveTo(cv.sx(p[0]), cv.sy(p[1]))); ctx.stroke(); ctx.setLineDash([]); };
+      pl(closed(P), tok('--muted'), 1.3, [4, 4]);
+      if (S.it > 0) pl(closed(chaikin(P, S.it - 1)), tok('--grid'), 1);
+      const q = chaikin(P, S.it); pl(closed(q), tok('--accent'), 2.8); if (S.it <= 4) q.forEach(p => dot(ctx, cv.sx(p[0]), cv.sy(p[1]), 2.6, tok('--accent')));
+      P.forEach(p => dot(ctx, cv.sx(p[0]), cv.sy(p[1]), 7, tok('--ink'), tok('--canvas'), 2));
+    }
+    draggable(cv, () => P, (i, w) => { P[i] = w; });
+    // Catmull–Clark
+    const V = viewer(right, { cam: [3.9, -5.2, 3.4] });
+    const cube = { v: [[-1, -1, -1], [1, -1, -1], [1, 1, -1], [-1, 1, -1], [-1, -1, 1], [1, -1, 1], [1, 1, 1], [-1, 1, 1]], f: [[0, 3, 2, 1], [4, 5, 6, 7], [0, 1, 5, 4], [1, 2, 6, 5], [2, 3, 7, 6], [3, 0, 4, 7]] };
+    function cc(m) {
+      const nv = m.v.length, fp = m.f.map(f => f.reduce((a, i) => a.map((x, d) => x + m.v[i][d] / f.length), [0, 0, 0]));
+      const edges = new Map(), key = (a, b) => a < b ? a + '_' + b : b + '_' + a;
+      m.f.forEach((f, fi) => f.forEach((a, k) => { const b = f[(k + 1) % f.length], kk = key(a, b); if (!edges.has(kk)) edges.set(kk, { a, b, faces: [] }); edges.get(kk).faces.push(fi); }));
+      const V2 = m.v.map(p => p.slice()); const eIndex = new Map();
+      edges.forEach((e, kk) => { const p = [0, 1, 2].map(d => (m.v[e.a][d] + m.v[e.b][d] + e.faces.reduce((s, fi) => s + fp[fi][d], 0)) / (2 + e.faces.length)); eIndex.set(kk, V2.length); V2.push(p); });
+      const fIndex = fp.map(p => { V2.push(p); return V2.length - 1; });
+      const adjF = Array.from({ length: nv }, () => []), adjE = Array.from({ length: nv }, () => []);
+      m.f.forEach((f, fi) => f.forEach(i => adjF[i].push(fi))); edges.forEach(e => { adjE[e.a].push(e); adjE[e.b].push(e); });
+      for (let i = 0; i < nv; i++) { const n = adjE[i].length; const F = [0, 1, 2].map(d => adjF[i].reduce((s, fi) => s + fp[fi][d], 0) / adjF[i].length); const R = [0, 1, 2].map(d => adjE[i].reduce((s, e) => s + (m.v[e.a][d] + m.v[e.b][d]) / 2, 0) / n); V2[i] = [0, 1, 2].map(d => (F[d] + 2 * R[d] + (n - 3) * m.v[i][d]) / n); }
+      const F2 = []; m.f.forEach((f, fi) => f.forEach((a, k) => { const b = f[(k + 1) % f.length], p = f[(k - 1 + f.length) % f.length]; F2.push([a, eIndex.get(key(a, b)), fIndex[fi], eIndex.get(key(p, a))]); }));
+      return { v: V2, f: F2 };
+    }
+    const toGeo = m => { const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(m.v.flat(), 3)); const idx = []; m.f.forEach(q => idx.push(q[0], q[1], q[2], q[0], q[2], q[3])); g.setIndex(idx); g.computeVertexNormals(); return g; };
+    const quadLines = m => { const L = []; m.f.forEach(q => q.forEach((a, k) => { const b = q[(k + 1) % 4]; if (a < b) L.push(...m.v[a], ...m.v[b]); })); const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(L, 3)); return g; };
+    const surf = new THREE.Mesh(new THREE.BufferGeometry(), new THREE.MeshStandardMaterial({ color: tok('--surface'), roughness: 0.5, polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 1 }));
+    const wire = new THREE.LineSegments(new THREE.BufferGeometry(), new THREE.LineBasicMaterial({ color: tok('--ink'), transparent: true, opacity: 0.35 }));
+    const cage = new THREE.LineSegments(quadLines(cube), new THREE.LineBasicMaterial({ color: tok('--accent') }));
+    V.scene.add(surf, wire, cage);
+    function build3() { let m = cube; for (let i = 0; i < S.lvl; i++) m = cc(m); surf.geometry.dispose(); surf.geometry = toGeo(m); wire.geometry.dispose(); wire.geometry = quadLines(m); wire.visible = S.wire; cage.visible = S.cage; rd.set([['curve points', String(P.length * 2 ** S.it)], ['surface quads', (6 * 4 ** S.lvl).toLocaleString()]]); }
+    slider(panel, { id: 'sd-it', label: 'Curve: subdivision steps', min: 0, max: 6, step: 1, value: S.it, f: v => v, onInput: v => { S.it = v; cv.redraw(); build3(); } });
+    slider(panel, { id: 'sd-lvl', label: 'Surface: Catmull–Clark levels', min: 0, max: 4, step: 1, value: S.lvl, f: v => v, onInput: v => { S.lvl = v; build3(); } });
+    check(panel, { id: 'sd-cage', label: 'Show control cage', checked: S.cage, onChange: v => { S.cage = v; cage.visible = v; } });
+    check(panel, { id: 'sd-wire', label: 'Show quads', checked: S.wire, onChange: v => { S.wire = v; wire.visible = v; } });
+    const rd = readout(panel);
+    panel.append(h('p', { style: 'margin:0;font-size:.86rem;color:var(--muted)' }, 'Chaikin: every edge (a, b) is replaced by ¾a + ¼b and ¼a + ¾b; the limit is a quadratic B-spline. Catmull–Clark adds face and edge points, then averages each old vertex with its neighbours. The limit surface approximates the cage rather than interpolating it.'));
+    cv.redraw(); build3();
+    return () => { cv.dispose(); V.dispose(); stage.classList.remove('split'); };
+  }
+});
+
+/* ───────────── router ───────────── */
+const nav = document.getElementById('nav'), main = document.getElementById('main');
+DEMOS.forEach(d => nav.append(h('a', { href: '#' + d.id, 'data-id': d.id }, d.title, h('small', {}, d.note))));
+let cleanup = null, current = null;
+function show() {
+  const id = (location.hash || '').slice(1); const d = DEMOS.find(x => x.id === id) || DEMOS[0];
+  if (cleanup) { try { cleanup(); } catch (e) { console.error(e); } cleanup = null; }
+  current = d;
+  nav.querySelectorAll('a').forEach(a => a.setAttribute('aria-current', a.dataset.id === d.id ? 'page' : 'false'));
+  const stage = h('div', { class: 'stage', id: 'stage' }), panel = h('aside', { class: 'panel', 'aria-label': 'Controls' });
+  const [pre, em, post] = d.tryText;
+  main.replaceChildren(
+    h('div', { class: 'demo-head' }, h('h2', {}, d.title), h('p', {}, d.lead), h('p', { class: 'try' }, pre, h('b', {}, em), post)),
+    h('div', { class: 'work' }, stage, panel)
+  );
+  try { cleanup = d.mount(stage, panel); } catch (e) { console.error(e); stage.append(h('p', { class: 'err' }, 'This demo could not start: ' + e.message)); }
+}
+addEventListener('hashchange', show);
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change', show);
+new MutationObserver(show).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+show();
+</script>
+
+</body></html>
